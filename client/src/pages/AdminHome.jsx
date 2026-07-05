@@ -5,11 +5,19 @@ import { api } from '../api.js';
 export default function AdminHome() {
   const [employees, setEmployees] = useState([]);
   const [alerts, setAlerts] = useState([]);
+  const [inBuilding, setInBuilding] = useState([]);
   const [error, setError] = useState('');
+
+  function loadCurrent() {
+    api.getCurrentRoomEntries().then(setInBuilding).catch(() => {});
+  }
 
   useEffect(() => {
     api.getEmployees().then(setEmployees).catch((e) => setError(e.message));
     api.getExpiryAlerts().then((data) => setAlerts(data.alerts)).catch(() => {});
+    loadCurrent();
+    const id = setInterval(loadCurrent, 10000);
+    return () => clearInterval(id);
   }, []);
 
   return (
@@ -25,6 +33,36 @@ export default function AdminHome() {
           ))}
         </div>
       )}
+
+      <div className="card">
+        <h2>Currently In Building ({inBuilding.length})</h2>
+        {inBuilding.length === 0 ? (
+          <p className="muted">No one is currently checked in. Scan an RFID tag at a door to check in.</p>
+        ) : (
+          <table>
+            <thead>
+              <tr>
+                <th>Employee</th>
+                <th>Emp ID</th>
+                <th>RFID Tag</th>
+                <th>Room</th>
+                <th>Entered At</th>
+              </tr>
+            </thead>
+            <tbody>
+              {inBuilding.map((r) => (
+                <tr key={r.emp_id + r.entry_time}>
+                  <td>{r.employee_name}</td>
+                  <td>{r.emp_id}</td>
+                  <td>{r.rfid_tag}</td>
+                  <td>{r.room}</td>
+                  <td>{r.entry_time}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
 
       <div className="card">
         <h2>Employee Details</h2>

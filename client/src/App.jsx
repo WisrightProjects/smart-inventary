@@ -5,6 +5,7 @@ import AdminLayout from './pages/AdminLayout.jsx';
 import AdminHome from './pages/AdminHome.jsx';
 import AdminStock from './pages/AdminStock.jsx';
 import AdminDates from './pages/AdminDates.jsx';
+import AdminScan from './pages/AdminScan.jsx';
 import EmployeeStock from './pages/EmployeeStock.jsx';
 import { getToken } from './api.js';
 
@@ -29,6 +30,7 @@ export default function App() {
         <Route index element={<AdminHome />} />
         <Route path="stock" element={<AdminStock />} />
         <Route path="dates" element={<AdminDates />} />
+        <Route path="scan" element={<AdminScan />} />
       </Route>
       <Route path="/employee" element={<EmployeeStock />} />
       <Route path="*" element={<Navigate to="/" replace />} />

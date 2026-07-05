@@ -46,6 +46,19 @@ CREATE TABLE IF NOT EXISTS movements (
   duration TEXT,
   status TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS room_entries (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  date TEXT NOT NULL,
+  emp_id TEXT NOT NULL,
+  employee_name TEXT NOT NULL,
+  rfid_tag TEXT NOT NULL,
+  room TEXT NOT NULL,
+  entry_time TEXT NOT NULL,
+  exit_time TEXT,
+  duration TEXT,
+  status TEXT NOT NULL
+);
 `);
 
 function seedIfEmpty() {
@@ -197,6 +210,54 @@ function seedIfEmpty() {
             status
           );
         });
+      });
+    });
+    db.exec('COMMIT');
+  }
+
+  const roomEntryCount = db.prepare('SELECT COUNT(*) AS c FROM room_entries').get().c;
+  if (roomEntryCount === 0) {
+    const insert = db.prepare(
+      `INSERT INTO room_entries (date, emp_id, employee_name, rfid_tag, room, entry_time, exit_time, duration, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    );
+
+    // Each employee's door-scan brackets their rack tour for the day (a few minutes
+    // before their first rack visit to a few minutes after their last).
+    const roster = [
+      { emp: 'EMP001', name: 'Akash', rfid: 'RFID1001', room: 'Room 1', in: '08:58', out: '14:18' },
+      { emp: 'EMP002', name: 'Rahul', rfid: 'RFID1002', room: 'Room 1', in: '09:08', out: '14:28' },
+      { emp: 'EMP003', name: 'Arjun', rfid: 'RFID1003', room: 'Room 2', in: '09:03', out: '14:22' },
+      { emp: 'EMP004', name: 'Priya', rfid: 'RFID1004', room: 'Room 3', in: '09:13', out: '14:38' },
+      { emp: 'EMP005', name: 'Karthik', rfid: 'RFID1005', room: 'Room 3', in: '09:18', out: '14:43' },
+    ];
+
+    const today = '2026-07-05';
+    const logDates = ['2026-06-30', ...Array.from({ length: 10 }, (_, i) => `2026-07-${String(i + 1).padStart(2, '0')}`)].filter(
+      (date) => date <= today
+    );
+
+    function minutesBetween(a, b) {
+      const [ah, am] = a.split(':').map(Number);
+      const [bh, bm] = b.split(':').map(Number);
+      return bh * 60 + bm - (ah * 60 + am);
+    }
+
+    db.exec('BEGIN');
+    logDates.forEach((date) => {
+      roster.forEach((person) => {
+        let exit = person.out;
+        let duration = `${minutesBetween(person.in, person.out)} mins`;
+        let status = 'Completed';
+
+        if (date === today && person.emp === 'EMP003') {
+          // Arjun is still inside Room 2 (matches his open rack scan today).
+          exit = null;
+          duration = null;
+          status = 'In Room';
+        }
+
+        insert.run(date, person.emp, person.name, person.rfid, person.room, person.in, exit, duration, status);
       });
     });
     db.exec('COMMIT');

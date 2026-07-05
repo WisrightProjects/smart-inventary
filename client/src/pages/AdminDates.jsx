@@ -10,6 +10,7 @@ export default function AdminDates() {
   const [dates, setDates] = useState([]);
   const [selected, setSelected] = useState(null);
   const [rows, setRows] = useState([]);
+  const [roomEntryRows, setRoomEntryRows] = useState([]);
 
   useEffect(() => {
     api.getMovementDates().then((d) => {
@@ -23,6 +24,7 @@ export default function AdminDates() {
   function selectDate(date) {
     setSelected(date);
     api.getMovementsByDate(date).then(setRows).catch(() => setRows([]));
+    api.getRoomEntries(date).then(setRoomEntryRows).catch(() => setRoomEntryRows([]));
   }
 
   return (
@@ -42,6 +44,42 @@ export default function AdminDates() {
           ))}
         </div>
       </div>
+
+      {selected && (
+        <div className="card">
+          <h2>Room Entry Log — {selected}</h2>
+          {roomEntryRows.length === 0 ? (
+            <p className="muted">No door scans recorded for this date.</p>
+          ) : (
+            <table>
+              <thead>
+                <tr>
+                  <th>In Time</th>
+                  <th>Employee</th>
+                  <th>Emp ID</th>
+                  <th>RFID Tag</th>
+                  <th>Room</th>
+                  <th>Out Time</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {roomEntryRows.map((r, i) => (
+                  <tr key={i}>
+                    <td>{r.entry_time}</td>
+                    <td>{r.employee_name}</td>
+                    <td>{r.emp_id}</td>
+                    <td>{r.rfid_tag}</td>
+                    <td>{r.room}</td>
+                    <td>{r.exit_time || '--'}</td>
+                    <td><StatusBadge status={r.status} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
 
       {selected && (
         <div className="card">

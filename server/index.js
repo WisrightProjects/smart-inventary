@@ -9,6 +9,7 @@ const employeeRoutes = require('./routes/employees');
 const productRoutes = require('./routes/products');
 const movementRoutes = require('./routes/movements');
 const expiryRoutes = require('./routes/expiry');
+const roomEntryRoutes = require('./routes/roomEntries');
 
 const app = express();
 app.use(cors());
@@ -19,6 +20,7 @@ app.use('/api/employees', employeeRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/movements', movementRoutes);
 app.use('/api/expiry-alerts', expiryRoutes);
+app.use('/api/room-entries', roomEntryRoutes);
 
 app.get('/api/health', (req, res) => res.json({ ok: true }));
 

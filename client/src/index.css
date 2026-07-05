@@ -417,6 +417,34 @@ tbody tr:hover td { background: #fbeecb; }
 
 .muted { color: var(--steel-2); font-size: 13px; }
 
+.scan-input {
+  flex: 1;
+  padding: 14px 16px;
+  font-family: var(--font-mono);
+  font-size: 16px;
+  letter-spacing: 0.04em;
+  border: 2px solid var(--line);
+  border-radius: 4px;
+  background: var(--paper);
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+.scan-input:focus { border-color: var(--amber); }
+
+.scan-result { text-align: center; }
+.scan-result-name {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-top: 4px;
+}
+.scan-result.scan-in { border-top-color: var(--green); }
+.scan-result.scan-in h2 { color: var(--green); }
+.scan-result.scan-out { border-top-color: var(--steel-2); }
+.scan-result.scan-out h2 { color: var(--steel-2); }
+
 .stat-row { display: flex; gap: 14px; margin-bottom: 16px; flex-wrap: wrap; }
 .stat-box { background: #efe9db; border-radius: 4px; padding: 12px 16px; min-width: 120px; }
 .stat-box .num { font-family: var(--font-display); font-size: 22px; font-weight: 600; color: var(--steel); }
