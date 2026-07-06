@@ -11,8 +11,24 @@ const RACKS = ['A', 'B', 'C', 'D', 'E'];
 // against the recorded quantity (no real YOLO/CNN pipeline is wired up).
 const SIMULATED_MISMATCH = { room: 'Room 2', rack: 'D', delta: -3 };
 
-router.get('/overview', requireAdmin, (req, res) => {
+router.get('/overview', requireAdmin, async (req, res) => {
   const cameras = [];
+  
+  // Fetch actual detections from Python microservice
+  let aiDetections = {};
+  try {
+    const aiResponse = await fetch('http://127.0.0.1:5000/api/detect');
+    if (aiResponse.ok) {
+      const data = await aiResponse.json();
+      data.detections.forEach(d => {
+        if (d.count !== null) {
+          aiDetections[`${d.room}-${d.rack}`] = d.count;
+        }
+      });
+    }
+  } catch (err) {
+    console.error("Could not reach Python CV service. Make sure it's running on port 5000.");
+  }
 
   ROOMS.forEach((room) => {
     RACKS.forEach((rack) => {
@@ -20,8 +36,8 @@ router.get('/overview', requireAdmin, (req, res) => {
         .prepare('SELECT COUNT(*) AS count, COALESCE(SUM(qty), 0) AS qty FROM products WHERE room = ? AND rack = ?')
         .get(room, rack);
 
-      const isMismatch = SIMULATED_MISMATCH.room === room && SIMULATED_MISMATCH.rack === rack;
-      const aiCount = isMismatch ? recordedQty + SIMULATED_MISMATCH.delta : recordedQty;
+      // Use AI count if available, otherwise fallback to recorded quantity
+      const aiCount = aiDetections[`${room}-${rack}`] !== undefined ? aiDetections[`${room}-${rack}`] : recordedQty;
 
       const lastActivity = db
         .prepare(
@@ -42,7 +58,7 @@ router.get('/overview', requireAdmin, (req, res) => {
     });
   });
 
-  res.json({ simulated: true, cameras });
+  res.json({ simulated: false, cameras });
 });
 
 module.exports = router;

@@ -8,6 +8,7 @@ import AdminDates from './pages/AdminDates.jsx';
 import AdminScan from './pages/AdminScan.jsx';
 import AdminCctv from './pages/AdminCctv.jsx';
 import EmployeeStock from './pages/EmployeeStock.jsx';
+import EmployeeScan from './pages/EmployeeScan.jsx';
 import { getToken } from './api.js';
 
 function RequireAuth({ children }) {
@@ -35,6 +36,7 @@ export default function App() {
         <Route path="cctv" element={<AdminCctv />} />
       </Route>
       <Route path="/employee" element={<EmployeeStock />} />
+      <Route path="/employee/scan" element={<EmployeeScan />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

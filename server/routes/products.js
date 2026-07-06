@@ -32,4 +32,17 @@ router.get('/', (req, res) => {
   res.json(products);
 });
 
+// Public: single product by product_id
+router.get('/:productId', (req, res) => {
+  const { productId } = req.params;
+  const product = db
+    .prepare('SELECT product_id, name, room, rack, unit, qty, expiry_date FROM products WHERE product_id = ?')
+    .get(productId);
+  
+  if (!product) {
+    return res.status(404).json({ error: 'Product not found' });
+  }
+  res.json(product);
+});
+
 module.exports = router;

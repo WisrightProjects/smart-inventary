@@ -44,6 +44,7 @@ export const api = {
   getExpiryAlerts: (days) => request(`/expiry-alerts${days ? `?days=${days}` : ''}`, { auth: true }),
   getProductOverview: () => request('/products/overview'),
   getProducts: (room, rack) => request(`/products?room=${encodeURIComponent(room)}&rack=${encodeURIComponent(rack)}`),
+  getProductById: (productId) => request(`/products/${encodeURIComponent(productId)}`),
   getMovementDates: () => request('/movements/dates', { auth: true }),
   getMovementsByDate: (date) => request(`/movements?date=${date}`, { auth: true }),
   getMovementSummary: (room, rack, date) =>

@@ -27,6 +27,7 @@ export default function EmployeeStock() {
       <div className="topbar employee">
         <h1>Smart Inventory — Employee</h1>
         <nav>
+          <Link to="/employee/scan">Scan Product</Link>
           <Link to="/">Exit</Link>
         </nav>
       </div>
