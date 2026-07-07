@@ -6,15 +6,33 @@ etc.) you need to fine-tune on labeled photos of your own products.
 
 ## 1. Capture Images
 
-- Place each product (and realistic mixes of products) inside the
-  transparent verification tray under the lighting you'll use in
-  production.
-- Capture 50-150 images per product class, varying:
-  - Position/orientation within the tray
-  - Quantity (1 item, several items, overlapping items)
-  - Mixed with other products (for cases like `MIXED_PRODUCTS` /
-    `UNEXPECTED_PRODUCT`)
-- Save images into `inventory_ai/dataset/images/` as `.jpg` or `.png`.
+Place each product (and realistic mixes of products) inside the
+transparent verification tray under the lighting you'll use in production.
+
+Use the built-in capture tool — it opens your configured webcam, shows a
+live preview, and saves consistently-named photos on each SPACE press:
+
+```bash
+cd inventory_ai
+python -m backend.training.capture_images --product "Pencil" --count 60
+```
+
+Controls: **SPACE** to capture, **ESC** to stop early. Files are saved to
+`dataset/images/pencil_001.jpg`, `pencil_002.jpg`, etc. Re-running the same
+`--product` continues numbering instead of overwriting earlier captures, so
+you can top up a product's photos across multiple sessions.
+
+Repeat once per catalog product (see `database/product_catalog.py` for the
+full list), varying:
+- Position/orientation within the tray
+- Quantity (1 item, several items, overlapping items)
+- Mixed with other products (for cases like `MIXED_PRODUCTS` /
+  `UNEXPECTED_PRODUCT`)
+
+Aim for 50-150 images per product. If you'd rather supply photos from
+another source (phone camera, existing product photography), just drop
+them into `dataset/images/` directly — the capture tool is a convenience,
+not a requirement.
 
 ## 2. Annotate Bounding Boxes
 
