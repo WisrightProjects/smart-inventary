@@ -50,8 +50,8 @@ const char* WIFI_SSID     = "Wisright";
 const char* WIFI_PASSWORD = "26488668";
 
 // ---------------- Backend ----------------
-// LAN IP of the machine running `node index.js` (server/), e.g. "192.168.1.42".
-const char* SERVER_HOST = "192.168.1.42";
+// LAN IP of the machine running `node index.js` (server/), e.g. "192.168.29.106".
+const char* SERVER_HOST = "192.168.29.106";
 const int   SERVER_PORT = 4000;
 const char* ROOM_NAME   = "Room 1";
 

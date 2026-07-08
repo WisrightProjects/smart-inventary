@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Search, Download, Plus } from "lucide-react";
+import { Search, Download, Plus, Users, Cpu } from "lucide-react";
 import PageHeader from "../components/PageHeader.jsx";
 import Badge from "../components/Badge.jsx";
 import { api } from "../api/client.js";
@@ -8,6 +8,11 @@ const DEPT_TONE = {
   Warehouse: "primary",
   Dispatch: "info",
 };
+
+const TABS = [
+  { id: "directory", label: "Team Directory", icon: Users },
+  { id: "device", label: "Device Admin", icon: Cpu },
+];
 
 function initials(name) {
   return name
@@ -22,6 +27,7 @@ export default function Workers() {
   const [workers, setWorkers] = useState([]);
   const [query, setQuery] = useState("");
   const [department, setDepartment] = useState("");
+  const [tab, setTab] = useState("directory");
 
   useEffect(() => {
     api.get("/workers").then(setWorkers).catch(() => {});
@@ -51,67 +57,98 @@ export default function Workers() {
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Workers"
-        subtitle={`${filtered.length} team members`}
+        subtitle={tab === "directory" ? `${filtered.length} team members` : "Device Administration Portal"}
         actions={
-          <>
-            <button onClick={exportCsv} className="btn-secondary ripple flex items-center gap-2 !py-2 !px-4 text-sm">
-              <Download size={16} /> Export
-            </button>
-            <button className="btn-primary ripple flex items-center gap-2 !py-2 !px-4 text-sm">
-              <Plus size={16} /> Add Worker
-            </button>
-          </>
+          tab === "directory" ? (
+            <>
+              <button onClick={exportCsv} className="btn-secondary ripple flex items-center gap-2 !py-2 !px-4 text-sm">
+                <Download size={16} /> Export
+              </button>
+              <button className="btn-primary ripple flex items-center gap-2 !py-2 !px-4 text-sm">
+                <Plus size={16} /> Add Worker
+              </button>
+            </>
+          ) : null
         }
       />
 
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-[240px]">
-          <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search workers…"
-            className="input-field pl-10"
-          />
-        </div>
-        <select value={department} onChange={(e) => setDepartment(e.target.value)} className="input-field w-auto">
-          {departments.map((d) => (
-            <option key={d} value={d}>
-              {d || "All Departments"}
-            </option>
-          ))}
-        </select>
+      <div className="inline-flex flex-wrap rounded-xl bg-hairline/[0.05] p-1 gap-1 w-fit">
+        {TABS.map((t) => {
+          const Icon = t.icon;
+          return (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                tab === t.id ? "bg-surface-alt text-ink shadow-soft" : "text-muted"
+              }`}
+            >
+              <Icon size={15} /> {t.label}
+            </button>
+          );
+        })}
       </div>
 
-      <div className="card overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-left text-muted text-xs uppercase tracking-wide border-b border-hairline/[0.05]">
-              <th className="p-4 pb-3 font-medium">Worker</th>
-              <th className="pb-3 font-medium">ID</th>
-              <th className="pb-3 font-medium">Department</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((w) => (
-              <tr key={w.id} className="border-b border-hairline/[0.04] last:border-0 hover:bg-primary/[0.03] transition-colors">
-                <td className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full bg-gradient-primary flex items-center justify-center text-white text-xs font-semibold">
-                      {initials(w.name)}
-                    </div>
-                    <span className="font-medium text-ink">{w.name}</span>
-                  </div>
-                </td>
-                <td className="text-muted">#{w.id}</td>
-                <td>
-                  <Badge tone={DEPT_TONE[w.department] || "neutral"}>{w.department}</Badge>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {tab === "directory" ? (
+        <>
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="relative flex-1 min-w-[240px]">
+              <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search workers…"
+                className="input-field pl-10"
+              />
+            </div>
+            <select value={department} onChange={(e) => setDepartment(e.target.value)} className="input-field w-auto">
+              {departments.map((d) => (
+                <option key={d} value={d}>
+                  {d || "All Departments"}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="card overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-muted text-xs uppercase tracking-wide border-b border-hairline/[0.05]">
+                  <th className="p-4 pb-3 font-medium">Worker</th>
+                  <th className="pb-3 font-medium">ID</th>
+                  <th className="pb-3 font-medium">Department</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((w) => (
+                  <tr key={w.id} className="border-b border-hairline/[0.04] last:border-0 hover:bg-primary/[0.03] transition-colors">
+                    <td className="p-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-full bg-gradient-primary flex items-center justify-center text-white text-xs font-semibold">
+                          {initials(w.name)}
+                        </div>
+                        <span className="font-medium text-ink">{w.name}</span>
+                      </div>
+                    </td>
+                    <td className="text-muted">#{w.id}</td>
+                    <td>
+                      <Badge tone={DEPT_TONE[w.department] || "neutral"}>{w.department}</Badge>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      ) : (
+        <div className="card p-0 overflow-hidden h-[600px] border border-hairline/[0.06] rounded-2xl bg-black/5">
+          <iframe
+            src="http://192.168.29.211/"
+            title="Device Administration Console"
+            className="w-full h-full border-0"
+          />
+        </div>
+      )}
     </div>
   );
 }
