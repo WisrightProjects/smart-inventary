@@ -101,4 +101,41 @@ router.post('/checkout', (req, res) => {
   res.json(payload);
 });
 
+// RackUnit ESP32: RFID tap at a specific rack. Only accepted if the employee
+// already has an open entrance session - a tap from someone not checked in
+// is rejected (403), not silently recorded, so rack activity always traces
+// back to a real entrance scan.
+router.post('/rack-scan', (req, res) => {
+  const { rfidTag, rack, room } = req.body || {};
+  if (!rfidTag || !rack || !room) {
+    return res.status(400).json({ error: 'rfidTag, rack, and room are required' });
+  }
+
+  const employee = db.prepare('SELECT * FROM employees WHERE rfid_tag = ?').get(rfidTag);
+  if (!employee) return res.status(404).json({ error: 'Unknown RFID tag' });
+
+  const openSession = db
+    .prepare('SELECT * FROM room_entries WHERE emp_id = ? AND exit_time IS NULL ORDER BY id DESC LIMIT 1')
+    .get(employee.emp_id);
+  if (!openSession) {
+    return res.status(403).json({ error: `${employee.name} is not checked in - tap the entrance reader first` });
+  }
+
+  const now = new Date();
+  const today = fmt(now);
+  const time = fmtTime(now);
+
+  db.prepare(
+    `INSERT INTO rack_scans (date, emp_id, employee_name, rfid_tag, room, rack, time)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`
+  ).run(today, employee.emp_id, employee.name, employee.rfid_tag, room, rack, time);
+
+  res.status(201).json({
+    employee: { name: employee.name, emp_id: employee.emp_id, department: employee.department },
+    room,
+    rack,
+    time,
+  });
+});
+
 module.exports = router;

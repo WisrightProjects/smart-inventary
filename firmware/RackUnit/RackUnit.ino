@@ -1,21 +1,24 @@
 /*
   Rack Unit - ESP32 + MFRC522
   ---------------------------------
-  Sits at the "Stationery" rack. When an employee taps their card here,
-  this unit reports the tap to the Entrance Unit over WiFi so it can be
-  logged against that employee's currently active login session.
+  Sits at a specific rack. When an employee taps their card here, this unit
+  reports the tap directly to the real Node backend:
 
-  If the tapped card has no active session at the Entrance Unit (i.e. the
-  employee never logged in, or already logged out), the Entrance Unit
-  rejects the report and this unit prints a warning instead.
+    POST /api/rfid/rack-scan { rfidTag, rack, room }
 
-  NETWORKING (for now): the Entrance Unit hosts its own WiFi network
-  (Access Point). This unit joins it directly as a station - no external
-  router needed for this bench-test setup.
+  The backend rejects the tap (403) if that employee doesn't currently have
+  an open entrance session - they must tap the EntranceUnit's reader first.
+  This unit and the EntranceUnit are two independent ESP32 boards that both
+  join the same real WiFi network and both talk to the same backend -
+  neither one talks to the other directly anymore.
 
-    SSID     : InventoryESP32
-    Password : Inventory123
-    Entrance Unit IP: 192.168.4.1
+  BEFORE FLASHING - fill in the placeholders below:
+    WIFI_SSID / WIFI_PASSWORD : same real WiFi network as the EntranceUnit
+    SERVER_HOST                : LAN IP of the machine running the Node
+                                  backend (NOT 127.0.0.1 - find it with
+                                  `ipconfig` on that machine)
+    ROOM_NAME / RACK_NAME      : must match a room/rack already known to
+                                  the backend (e.g. "Room 1" / "A")
 
   Wiring (MFRC522 -> ESP32) - same as Entrance Unit, adjust pins if needed:
     SDA/SS  -> GPIO5
@@ -36,15 +39,15 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
 
-// ---------------- WiFi (join the Entrance Unit's Access Point) ----------------
-const char* WIFI_SSID     = "InventoryESP32";
-const char* WIFI_PASSWORD = "Inventory123";
+// ---------------- WiFi ----------------
+const char* WIFI_SSID     = "YOUR_WIFI_SSID";
+const char* WIFI_PASSWORD = "YOUR_WIFI_PASSWORD";
 
-// Entrance Unit's fixed AP IP (192.168.4.1 by default on ESP32).
-const char* ENTRANCE_UNIT_URL = "http://192.168.4.1/rackAccess";
-
-// Only one rack for now.
-const char* RACK_NAME = "Stationery";
+// ---------------- Backend ----------------
+const char* SERVER_HOST = "192.168.1.42";
+const int   SERVER_PORT = 4000;
+const char* ROOM_NAME   = "Room 1";
+const char* RACK_NAME   = "A";
 
 // ---------------- RFID ----------------
 #define SS_PIN  5
@@ -61,6 +64,10 @@ String readUID() {
   return uidStr;
 }
 
+String backendUrl(const char* path) {
+  return "http://" + String(SERVER_HOST) + ":" + String(SERVER_PORT) + path;
+}
+
 void setup() {
   Serial.begin(115200);
   SPI.begin();
@@ -75,6 +82,8 @@ void setup() {
   Serial.println();
   Serial.print("Rack Unit IP: ");
   Serial.println(WiFi.localIP());
+  Serial.print("Reporting to backend at ");
+  Serial.println(backendUrl(""));
 
   Serial.println("Rack Unit ready. Waiting for RFID taps...");
 }
@@ -87,22 +96,28 @@ void loop() {
   String uid = readUID();
   Serial.println("Tap detected -> UID: " + uid);
 
-  if (WiFi.status() == WL_CONNECTED) {
-    HTTPClient http;
-    String url = String(ENTRANCE_UNIT_URL) + "?uid=" + uid + "&rack=" + RACK_NAME;
-    http.begin(url);
-    int httpCode = http.GET();
-
-    if (httpCode == 200) {
-      Serial.println("Recorded: " + uid + " took from " + String(RACK_NAME));
-    } else if (httpCode == 403) {
-      Serial.println("Denied: " + uid + " is not currently logged in at the Entrance.");
-    } else {
-      Serial.println("Error contacting Entrance Unit. HTTP code: " + String(httpCode));
-    }
-    http.end();
-  } else {
+  if (WiFi.status() != WL_CONNECTED) {
     Serial.println("WiFi not connected, cannot report rack access.");
+  } else {
+    String body = "{\"rfidTag\":\"" + uid + "\",\"rack\":\"" + String(RACK_NAME) +
+                  "\",\"room\":\"" + String(ROOM_NAME) + "\"}";
+
+    HTTPClient http;
+    http.begin(backendUrl("/api/rfid/rack-scan"));
+    http.addHeader("Content-Type", "application/json");
+    int code = http.POST(body);
+    String response = http.getString();
+    http.end();
+
+    if (code == 201) {
+      Serial.println("Recorded: " + response);
+    } else if (code == 403) {
+      Serial.println("Denied: " + uid + " is not currently checked in. " + response);
+    } else if (code == 404) {
+      Serial.println("Unregistered card: " + uid);
+    } else {
+      Serial.println("Error contacting backend. HTTP code: " + String(code) + " " + response);
+    }
   }
 
   rfid.PICC_HaltA();

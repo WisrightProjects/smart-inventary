@@ -98,6 +98,21 @@ CREATE TABLE IF NOT EXISTS box_transfers (
   source TEXT NOT NULL DEFAULT 'vision',
   status TEXT NOT NULL DEFAULT 'Completed'
 );
+
+-- RFID tap logged at a rack reader (RackUnit ESP32). Requires the employee to
+-- already have an open room_entries session (they must be checked in via the
+-- EntranceUnit first) - a tap from someone not checked in is rejected, not
+-- silently logged.
+CREATE TABLE IF NOT EXISTS rack_scans (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  date TEXT NOT NULL,
+  emp_id TEXT NOT NULL,
+  employee_name TEXT NOT NULL,
+  rfid_tag TEXT NOT NULL,
+  room TEXT NOT NULL,
+  rack TEXT NOT NULL,
+  time TEXT NOT NULL
+);
 `);
 
 // Migration: employees table may pre-date the password_hash column (added for
