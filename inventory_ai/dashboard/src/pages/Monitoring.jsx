@@ -53,7 +53,7 @@ export default function Monitoring() {
   );
 }
 
-function CctvTab() {
+export function CctvTab() {
   const [live, setLive] = useState(null);
   const [error, setError] = useState(null);
   const [now, setNow] = useState(new Date());
@@ -197,7 +197,7 @@ function CctvTab() {
   );
 }
 
-function EmployeeTab() {
+export function EmployeeTab() {
   const [current, setCurrent] = useState([]);
   const [date, setDate] = useState(todayStr());
   const [history, setHistory] = useState([]);
@@ -358,7 +358,7 @@ function useCatalog() {
   return { catalog, loading, error };
 }
 
-function StockTab() {
+export function StockTab() {
   const [overview, setOverview] = useState([]);
   const [rackScans, setRackScans] = useState([]);
   const { catalog, loading } = useCatalog();
@@ -502,7 +502,7 @@ function StockTab() {
   );
 }
 
-function GuidanceTab() {
+export function GuidanceTab() {
   const { catalog, loading } = useCatalog();
   const [query, setQuery] = useState("");
 
