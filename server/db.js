@@ -2,7 +2,7 @@ const path = require('path');
 const bcrypt = require('bcryptjs');
 const { DatabaseSync } = require('node:sqlite');
 
-const db = new DatabaseSync(path.join(__dirname, 'data.db'));
+const db = new DatabaseSync(process.env.DB_PATH || path.join(__dirname, 'data.db'));
 
 db.exec(`
 CREATE TABLE IF NOT EXISTS admins (
