@@ -80,6 +80,24 @@ CREATE TABLE IF NOT EXISTS alerts (
   time TEXT NOT NULL,
   status TEXT NOT NULL DEFAULT 'open'
 );
+
+-- Box moved between rooms by an employee, detected by the monitor AI service
+-- (vision "carrying a box" + RFID room transition). product_* stays null until
+-- resolved (e.g. by pairing with a scanned product QR).
+CREATE TABLE IF NOT EXISTS box_transfers (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  date TEXT NOT NULL,
+  emp_id TEXT,
+  employee_name TEXT,
+  from_room TEXT NOT NULL,
+  to_room TEXT NOT NULL,
+  product_id TEXT,
+  product_name TEXT,
+  start_time TEXT,
+  end_time TEXT,
+  source TEXT NOT NULL DEFAULT 'vision',
+  status TEXT NOT NULL DEFAULT 'Completed'
+);
 `);
 
 // Migration: employees table may pre-date the password_hash column (added for
@@ -311,6 +329,26 @@ function seedIfEmpty() {
         insert.run(date, person.emp, person.name, person.rfid, person.room, person.in, exit, duration, status);
       });
     });
+    db.exec('COMMIT');
+  }
+
+  // A few demo box transfers so the dashboard's Box Transfers view has data
+  // before the vision model is trained. Real transfers are inserted live by the
+  // monitor AI service via POST /api/transfers.
+  const transferCount = db.prepare('SELECT COUNT(*) AS c FROM box_transfers').get().c;
+  if (transferCount === 0) {
+    const insert = db.prepare(
+      `INSERT INTO box_transfers (date, emp_id, employee_name, from_room, to_room, product_id, product_name, start_time, end_time, source, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    );
+    const today = '2026-07-05';
+    const demo = [
+      [today, 'EMP001', 'Akash', 'Room 1', 'Room 2', 'ST001', 'A4 Paper Bundle', '10:12', '10:15', 'vision+qr', 'Completed'],
+      [today, 'EMP003', 'Arjun', 'Room 2', 'Room 3', null, null, '11:48', '11:52', 'vision', 'Completed'],
+      [today, 'EMP004', 'Priya', 'Room 3', 'Room 1', 'DC006', 'Gift Boxes', '13:05', '13:09', 'vision+qr', 'Completed'],
+    ];
+    db.exec('BEGIN');
+    demo.forEach((r) => insert.run(...r));
     db.exec('COMMIT');
   }
 }

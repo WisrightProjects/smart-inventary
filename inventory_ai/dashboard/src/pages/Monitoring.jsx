@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Camera, CameraOff, Power, DoorOpen, Package, Search, AlertCircle, Users, UserX, Gauge, Clock } from "lucide-react";
+import { Camera, CameraOff, Power, DoorOpen, Package, Search, AlertCircle, Users, UserX, Gauge, Clock, ArrowRight, PackageCheck } from "lucide-react";
 import PageHeader from "../components/PageHeader.jsx";
 import Badge from "../components/Badge.jsx";
 import ProgressBar from "../components/ProgressBar.jsx";
@@ -183,6 +183,9 @@ function CctvTab() {
               <p className="text-xs text-muted">Tracking ID: {t.tracker_id}</p>
               {t.entry_time && <p className="text-xs text-muted">Entered: {t.entry_time}</p>}
               <p className="text-xs text-muted">Confidence: {(t.confidence * 100).toFixed(0)}%</p>
+              {t.carrying && (
+                <span className="mt-1"><Badge tone="warning" dot>Carrying box</Badge></span>
+              )}
             </div>
           ))}
           {(!live?.tracks || live.tracks.length === 0) && (
@@ -198,6 +201,7 @@ function EmployeeTab() {
   const [current, setCurrent] = useState([]);
   const [date, setDate] = useState(todayStr());
   const [history, setHistory] = useState([]);
+  const [transfers, setTransfers] = useState([]);
   const [error, setError] = useState(null);
 
   useEffect(() => {
@@ -206,6 +210,7 @@ function EmployeeTab() {
 
   useEffect(() => {
     monitorApi.get(`/room-entries?date=${date}`).then(setHistory).catch((e) => setError(e.message));
+    monitorApi.get(`/transfers?date=${date}`).then(setTransfers).catch(() => {});
   }, [date]);
 
   return (
@@ -273,6 +278,55 @@ function EmployeeTab() {
                 <tr>
                   <td colSpan={6} className="py-6 text-center text-muted">
                     No entries for this date.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="card p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <PackageCheck size={18} className="text-primary" />
+            <h3 className="font-semibold text-ink">Box Transfers</h3>
+          </div>
+          <Badge tone="info">{transfers.length} on {date}</Badge>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-muted text-xs uppercase tracking-wide border-b border-hairline/[0.05]">
+                <th className="pb-3 font-medium">Employee</th>
+                <th className="pb-3 font-medium">Movement</th>
+                <th className="pb-3 font-medium">Product</th>
+                <th className="pb-3 font-medium">Time</th>
+                <th className="pb-3 font-medium">Source</th>
+              </tr>
+            </thead>
+            <tbody>
+              {transfers.map((t) => (
+                <tr key={t.id} className="border-b border-hairline/[0.04] last:border-0">
+                  <td className="py-3 text-ink font-medium">{t.employee_name || "—"}</td>
+                  <td className="py-3">
+                    <span className="inline-flex items-center gap-1.5">
+                      <Badge tone="info">{t.from_room}</Badge>
+                      <ArrowRight size={14} className="text-primary" />
+                      <Badge tone="success">{t.to_room}</Badge>
+                    </span>
+                  </td>
+                  <td className="py-3 text-muted">{t.product_name || "Unidentified box"}</td>
+                  <td className="py-3 text-muted">{t.start_time || t.end_time || "—"}</td>
+                  <td className="py-3">
+                    <Badge tone={t.source === "vision+qr" ? "success" : "neutral"}>{t.source}</Badge>
+                  </td>
+                </tr>
+              ))}
+              {transfers.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="py-6 text-center text-muted">
+                    No box transfers detected for this date.
                   </td>
                 </tr>
               )}
