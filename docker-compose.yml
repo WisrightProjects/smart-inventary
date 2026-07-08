@@ -17,8 +17,10 @@ services:
       context: ./server
       dockerfile: Dockerfile
     restart: unless-stopped
+    # node stays internal — the dashboard's nginx proxies to it over the compose
+    # network. Give it a public domain here only if on-prem ESP32 units must reach
+    # it directly (add: SERVICE_FQDN_NODE_4000: 'https://your-api-domain').
     environment:
-      SERVICE_FQDN_NODE_4000: 'https://inventory-api.wisright.com'
       PORT: 4000
       DB_PATH: /data/data.db
       JWT_SECRET: '${SERVICE_PASSWORD_JWT}'
