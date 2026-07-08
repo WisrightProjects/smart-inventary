@@ -49,11 +49,13 @@ class LiveState:
     tracks: list[dict] = field(default_factory=list)
     fps: float = 0.0
     connected: bool = False
+    power: bool = False  # whether the camera has been switched ON via the toggle
 
     def snapshot(self) -> dict:
         with self.lock:
             return {
                 "camera_connected": self.connected,
+                "power_on": self.power,
                 "fps": self.fps,
                 "room": config.MONITOR_ROOM,
                 "employee_count": sum(1 for t in self.tracks if t["emp_id"] is not None),
@@ -78,23 +80,20 @@ active_viewers = 0
 viewer_lock = threading.Lock()
 
 
+# Viewer counting is kept for observability only. The camera is now switched
+# on/off explicitly via the /camera/on and /camera/off endpoints (the ON/OFF
+# toggle on the dashboard), NOT automatically when a stream viewer connects —
+# otherwise switching dashboard tabs would power the camera off.
 def add_viewer() -> None:
     global active_viewers
     with viewer_lock:
         active_viewers += 1
-        if active_viewers == 1:
-            logger.info("First viewer connected. Starting camera stream...")
-            camera.start()
 
 
 def remove_viewer() -> None:
     global active_viewers
     with viewer_lock:
-        active_viewers -= 1
-        if active_viewers <= 0:
-            active_viewers = 0
-            logger.info("No active viewers. Stopping camera stream...")
-            camera.stop()
+        active_viewers = max(0, active_viewers - 1)
 
 
 
@@ -204,6 +203,29 @@ def health() -> dict:
 @app.get("/live")
 def live() -> dict:
     return state.snapshot()
+
+
+@app.post("/camera/on")
+def camera_on() -> dict:
+    """Switch the IP camera ON (starts the RTSP stream + detection pipeline)."""
+    camera.start()  # idempotent: warns and no-ops if already running
+    with state.lock:
+        state.power = True
+    logger.info("Camera switched ON via toggle")
+    return {"power_on": True}
+
+
+@app.post("/camera/off")
+def camera_off() -> dict:
+    """Switch the IP camera OFF (stops the stream; feed goes blank)."""
+    camera.stop()
+    with state.lock:
+        state.power = False
+        state.frame = None
+        state.tracks = []
+        state.fps = 0.0
+    logger.info("Camera switched OFF via toggle")
+    return {"power_on": False}
 
 
 def _mjpeg_generator():

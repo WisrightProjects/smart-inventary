@@ -63,6 +63,10 @@ class WebcamStream:
             self._cap.release()
             self._cap = None
         self.status.connected = False
+        # Clear the last frame so consumers see None (not a frozen final frame)
+        # once the camera is powered off.
+        with self._lock:
+            self._frame = None
         logger.info("Camera stream stopped")
 
     def get_frame(self) -> np.ndarray | None:

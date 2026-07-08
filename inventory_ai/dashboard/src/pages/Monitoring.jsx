@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Camera, DoorOpen, Package, Search, AlertCircle, Users, UserX, Gauge, Clock } from "lucide-react";
+import { Camera, CameraOff, Power, DoorOpen, Package, Search, AlertCircle, Users, UserX, Gauge, Clock } from "lucide-react";
 import PageHeader from "../components/PageHeader.jsx";
 import Badge from "../components/Badge.jsx";
 import ProgressBar from "../components/ProgressBar.jsx";
@@ -58,6 +58,7 @@ function CctvTab() {
   const [error, setError] = useState(null);
   const [now, setNow] = useState(new Date());
   const [streamKey] = useState(() => Date.now());
+  const [powering, setPowering] = useState(false);
 
   useEffect(() => {
     const refresh = () => {
@@ -79,6 +80,21 @@ function CctvTab() {
   }, []);
 
   const cameraOnline = !!live?.camera_connected;
+  const powerOn = !!live?.power_on;
+
+  async function toggleCamera() {
+    setPowering(true);
+    setError(null);
+    try {
+      await fetch(`${AI_BASE_URL}/camera/${powerOn ? "off" : "on"}`, { method: "POST" });
+      const res = await fetch(`${AI_BASE_URL}/live`);
+      if (res.ok) setLive(await res.json());
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setPowering(false);
+    }
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -92,6 +108,22 @@ function CctvTab() {
       </div>
 
       {error && <p className="text-sm text-danger">{error}</p>}
+
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center gap-2">
+          <span className={`w-2.5 h-2.5 rounded-full ${powerOn ? (cameraOnline ? "bg-success" : "bg-warning") : "bg-danger"}`} />
+          <span className="text-sm text-muted">
+            IP Camera {powerOn ? (cameraOnline ? "on" : "starting…") : "off"}
+          </span>
+        </div>
+        <button
+          onClick={toggleCamera}
+          disabled={powering}
+          className={`ripple flex items-center gap-2 text-sm ${powerOn ? "btn-secondary" : "btn-primary"} ${powering ? "opacity-60 cursor-wait" : ""}`}
+        >
+          <Power size={16} /> {powering ? "…" : powerOn ? "Turn Camera Off" : "Turn Camera On"}
+        </button>
+      </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
         <div className="card p-4 flex flex-col gap-1">
@@ -124,12 +156,19 @@ function CctvTab() {
       </div>
 
       <div className="card overflow-hidden">
-        <img
-          key={streamKey}
-          src={`${AI_BASE_URL}/stream`}
-          alt={`Live feed — ${live?.room ?? "camera"}`}
-          className="w-full h-auto bg-black block"
-        />
+        {powerOn ? (
+          <img
+            key={streamKey}
+            src={`${AI_BASE_URL}/stream`}
+            alt={`Live feed — ${live?.room ?? "camera"}`}
+            className="w-full h-auto bg-black block"
+          />
+        ) : (
+          <div className="aspect-video flex flex-col items-center justify-center gap-3 bg-black/40 text-muted">
+            <CameraOff size={40} strokeWidth={1.2} className="text-danger/70" />
+            <p className="text-sm">Camera is off — press “Turn Camera On” to start the live feed.</p>
+          </div>
+        )}
       </div>
 
       <div className="card p-6">
