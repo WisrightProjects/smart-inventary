@@ -2,7 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 
-require('./db'); // ensures schema + seed run on boot
+const db = require('./db');
 
 const authRoutes = require('./routes/auth');
 const employeeRoutes = require('./routes/employees');
@@ -34,5 +34,19 @@ app.use('/api/transfers', transferRoutes);
 
 app.get('/api/health', (req, res) => res.json({ ok: true }));
 
+// eslint-disable-next-line no-unused-vars
+app.use((err, req, res, next) => {
+  console.error(err);
+  res.status(500).json({ error: 'Internal server error' });
+});
+
 const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => console.log(`Smart Inventory API listening on port ${PORT}`));
+
+db.init()
+  .then(() => {
+    app.listen(PORT, () => console.log(`Smart Inventory API listening on port ${PORT}`));
+  })
+  .catch((err) => {
+    console.error('Failed to initialize database:', err);
+    process.exit(1);
+  });

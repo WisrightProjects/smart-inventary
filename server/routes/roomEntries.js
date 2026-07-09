@@ -2,6 +2,7 @@ const express = require('express');
 const db = require('../db');
 const { requireAdmin, requireAdminViaQuery } = require('../middleware/auth');
 const { roomEntryEvents } = require('../events');
+const { asyncHandler } = require('../middleware/asyncHandler');
 
 const router = express.Router();
 
@@ -25,29 +26,37 @@ function minutesBetween(a, b) {
 }
 
 // Admin: room-entry log for a given date.
-router.get('/', requireAdmin, (req, res) => {
-  const { date } = req.query;
-  if (!date) return res.status(400).json({ error: 'date query param is required (YYYY-MM-DD)' });
+router.get(
+  '/',
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const { date } = req.query;
+    if (!date) return res.status(400).json({ error: 'date query param is required (YYYY-MM-DD)' });
 
-  const rows = db
-    .prepare(
-      `SELECT date, entry_time, exit_time, employee_name, emp_id, rfid_tag, room, duration, status
-       FROM room_entries WHERE date = ? ORDER BY entry_time`
-    )
-    .all(date);
-  res.json(rows);
-});
+    const rows = await db
+      .prepare(
+        `SELECT date, entry_time, exit_time, employee_name, emp_id, rfid_tag, room, duration, status
+         FROM room_entries WHERE date = ? ORDER BY entry_time`
+      )
+      .all(date);
+    res.json(rows);
+  })
+);
 
 // Admin: who is currently inside a room right now (no exit scan yet).
-router.get('/current', requireAdmin, (req, res) => {
-  const rows = db
-    .prepare(
-      `SELECT date, entry_time, employee_name, emp_id, rfid_tag, room
-       FROM room_entries WHERE exit_time IS NULL ORDER BY entry_time`
-    )
-    .all();
-  res.json(rows);
-});
+router.get(
+  '/current',
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const rows = await db
+      .prepare(
+        `SELECT date, entry_time, employee_name, emp_id, rfid_tag, room
+         FROM room_entries WHERE exit_time IS NULL ORDER BY entry_time`
+      )
+      .all();
+    res.json(rows);
+  })
+);
 
 // Admin: live push of every RFID entry/exit as it happens (Server-Sent Events).
 // EventSource can't set headers, so auth comes via ?token= instead of the
@@ -76,54 +85,58 @@ router.get('/stream', requireAdminViaQuery, (req, res) => {
 
 // Admin/kiosk: scan an RFID tag at a room door. First scan of the day checks the
 // employee in; if they already have an open entry, this scan checks them out.
-router.post('/scan', requireAdmin, (req, res) => {
-  const { rfidTag, room } = req.body || {};
-  if (!rfidTag || !room) return res.status(400).json({ error: 'rfidTag and room are required' });
+router.post(
+  '/scan',
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const { rfidTag, room } = req.body || {};
+    if (!rfidTag || !room) return res.status(400).json({ error: 'rfidTag and room are required' });
 
-  const employee = db.prepare('SELECT * FROM employees WHERE rfid_tag = ?').get(rfidTag);
-  if (!employee) return res.status(404).json({ error: `No employee is registered to tag "${rfidTag}"` });
+    const employee = await db.prepare('SELECT * FROM employees WHERE rfid_tag = ?').get(rfidTag);
+    if (!employee) return res.status(404).json({ error: `No employee is registered to tag "${rfidTag}"` });
 
-  const now = new Date();
-  const today = fmt(now);
-  const time = fmtTime(now);
+    const now = new Date();
+    const today = fmt(now);
+    const time = fmtTime(now);
 
-  const open = db
-    .prepare('SELECT * FROM room_entries WHERE emp_id = ? AND exit_time IS NULL ORDER BY id DESC LIMIT 1')
-    .get(employee.emp_id);
+    const open = await db
+      .prepare('SELECT * FROM room_entries WHERE emp_id = ? AND exit_time IS NULL ORDER BY id DESC LIMIT 1')
+      .get(employee.emp_id);
 
-  if (open) {
-    const duration = `${minutesBetween(open.entry_time, time)} mins`;
-    db.prepare('UPDATE room_entries SET exit_time = ?, duration = ?, status = ? WHERE id = ?').run(
-      time,
-      duration,
-      'Completed',
-      open.id
-    );
-    const exitPayload = {
-      action: 'exit',
+    if (open) {
+      const duration = `${minutesBetween(open.entry_time, time)} mins`;
+      await db.prepare('UPDATE room_entries SET exit_time = ?, duration = ?, status = ? WHERE id = ?').run(
+        time,
+        duration,
+        'Completed',
+        open.id
+      );
+      const exitPayload = {
+        action: 'exit',
+        employee: { name: employee.name, emp_id: employee.emp_id, department: employee.department },
+        room: open.room,
+        entry_time: open.entry_time,
+        exit_time: time,
+        duration,
+      };
+      roomEntryEvents.emit('entry', exitPayload);
+      return res.json(exitPayload);
+    }
+
+    await db.prepare(
+      `INSERT INTO room_entries (date, emp_id, employee_name, rfid_tag, room, entry_time, exit_time, duration, status)
+       VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, 'In Room')`
+    ).run(today, employee.emp_id, employee.name, employee.rfid_tag, room, time);
+
+    const entryPayload = {
+      action: 'entry',
       employee: { name: employee.name, emp_id: employee.emp_id, department: employee.department },
-      room: open.room,
-      entry_time: open.entry_time,
-      exit_time: time,
-      duration,
+      room,
+      entry_time: time,
     };
-    roomEntryEvents.emit('entry', exitPayload);
-    return res.json(exitPayload);
-  }
-
-  db.prepare(
-    `INSERT INTO room_entries (date, emp_id, employee_name, rfid_tag, room, entry_time, exit_time, duration, status)
-     VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, 'In Room')`
-  ).run(today, employee.emp_id, employee.name, employee.rfid_tag, room, time);
-
-  const entryPayload = {
-    action: 'entry',
-    employee: { name: employee.name, emp_id: employee.emp_id, department: employee.department },
-    room,
-    entry_time: time,
-  };
-  roomEntryEvents.emit('entry', entryPayload);
-  res.json(entryPayload);
-});
+    roomEntryEvents.emit('entry', entryPayload);
+    res.json(entryPayload);
+  })
+);
 
 module.exports = router;

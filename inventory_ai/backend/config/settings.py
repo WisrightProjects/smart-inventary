@@ -47,7 +47,7 @@ class Settings(BaseSettings):
 
     def model_post_init(self, __context) -> None:
         if not self.database_url:
-            self.database_url = f"sqlite:///{self.database_path.as_posix()}"
+            self.database_url = "postgresql+psycopg2://postgres:postgres@localhost:5432/inventory_ai"
         self.log_dir.mkdir(parents=True, exist_ok=True)
         self.database_path.parent.mkdir(parents=True, exist_ok=True)
 

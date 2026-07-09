@@ -1,18 +1,52 @@
-const path = require('path');
 const bcrypt = require('bcryptjs');
-const { DatabaseSync } = require('node:sqlite');
+const { Pool } = require('pg');
 
-const db = new DatabaseSync(process.env.DB_PATH || path.join(__dirname, 'data.db'));
+const pool = new Pool({
+  connectionString:
+    process.env.DATABASE_URL || 'postgres://postgres:postgres@localhost:5432/smart_inventary',
+});
 
-db.exec(`
+// Route files were written against a SQLite-style `?` placeholder API
+// (db.prepare(sql).get/all/run(...params)). Rather than rewrite every query
+// string to Postgres's $1/$2 syntax, this shim converts `?` -> $n internally
+// so only the route handlers need to become async/await - the SQL text stays
+// identical to before.
+function toPgSql(sql) {
+  let i = 0;
+  return sql.replace(/\?/g, () => `$${++i}`);
+}
+
+function prepare(sql) {
+  const pgSql = toPgSql(sql);
+  return {
+    async get(...params) {
+      const { rows } = await pool.query(pgSql, params);
+      return rows[0];
+    },
+    async all(...params) {
+      const { rows } = await pool.query(pgSql, params);
+      return rows;
+    },
+    async run(...params) {
+      const result = await pool.query(pgSql, params);
+      return { changes: result.rowCount, rows: result.rows };
+    },
+  };
+}
+
+async function exec(sql) {
+  await pool.query(sql);
+}
+
+const SCHEMA = `
 CREATE TABLE IF NOT EXISTS admins (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  id SERIAL PRIMARY KEY,
   username TEXT UNIQUE NOT NULL,
   password_hash TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS employees (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  id SERIAL PRIMARY KEY,
   emp_id TEXT UNIQUE NOT NULL,
   name TEXT NOT NULL,
   rfid_tag TEXT UNIQUE NOT NULL,
@@ -22,7 +56,7 @@ CREATE TABLE IF NOT EXISTS employees (
 );
 
 CREATE TABLE IF NOT EXISTS products (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  id SERIAL PRIMARY KEY,
   product_id TEXT UNIQUE NOT NULL,
   name TEXT NOT NULL,
   room TEXT NOT NULL,
@@ -33,7 +67,7 @@ CREATE TABLE IF NOT EXISTS products (
 );
 
 CREATE TABLE IF NOT EXISTS movements (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  id SERIAL PRIMARY KEY,
   date TEXT NOT NULL,
   emp_id TEXT NOT NULL,
   employee_name TEXT NOT NULL,
@@ -49,7 +83,7 @@ CREATE TABLE IF NOT EXISTS movements (
 );
 
 CREATE TABLE IF NOT EXISTS room_entries (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  id SERIAL PRIMARY KEY,
   date TEXT NOT NULL,
   emp_id TEXT NOT NULL,
   employee_name TEXT NOT NULL,
@@ -63,7 +97,7 @@ CREATE TABLE IF NOT EXISTS room_entries (
 
 -- Latest AI-tracked identity assignment per employee (Phase 2: live monitoring).
 CREATE TABLE IF NOT EXISTS detections (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  id SERIAL PRIMARY KEY,
   tracking_id INTEGER NOT NULL,
   emp_id TEXT,
   confidence REAL,
@@ -73,7 +107,7 @@ CREATE TABLE IF NOT EXISTS detections (
 
 -- Unauthorized/unknown-person events reported by the monitor AI service.
 CREATE TABLE IF NOT EXISTS alerts (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  id SERIAL PRIMARY KEY,
   type TEXT NOT NULL,
   person TEXT,
   room TEXT NOT NULL,
@@ -85,7 +119,7 @@ CREATE TABLE IF NOT EXISTS alerts (
 -- (vision "carrying a box" + RFID room transition). product_* stays null until
 -- resolved (e.g. by pairing with a scanned product QR).
 CREATE TABLE IF NOT EXISTS box_transfers (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  id SERIAL PRIMARY KEY,
   date TEXT NOT NULL,
   emp_id TEXT,
   employee_name TEXT,
@@ -104,7 +138,7 @@ CREATE TABLE IF NOT EXISTS box_transfers (
 -- EntranceUnit first) - a tap from someone not checked in is rejected, not
 -- silently logged.
 CREATE TABLE IF NOT EXISTS rack_scans (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  id SERIAL PRIMARY KEY,
   date TEXT NOT NULL,
   emp_id TEXT NOT NULL,
   employee_name TEXT NOT NULL,
@@ -113,18 +147,7 @@ CREATE TABLE IF NOT EXISTS rack_scans (
   rack TEXT NOT NULL,
   time TEXT NOT NULL
 );
-`);
-
-// Migration: employees table may pre-date the password_hash column (added for
-// employee self-login). ALTER is a no-op error if it already exists, so guard
-// with a schema check rather than try/catch-and-ignore.
-function ensureEmployeePasswordColumn() {
-  const columns = db.prepare("PRAGMA table_info(employees)").all();
-  const hasPasswordHash = columns.some((c) => c.name === 'password_hash');
-  if (!hasPasswordHash) {
-    db.exec('ALTER TABLE employees ADD COLUMN password_hash TEXT');
-  }
-}
+`;
 
 // Demo-only default password for every seeded employee (EMP001-EMP005), so
 // Phase 1's employee login has something to authenticate against. This is
@@ -132,22 +155,17 @@ function ensureEmployeePasswordColumn() {
 // employee to set their own password.
 const DEFAULT_EMPLOYEE_PASSWORD = process.env.DEFAULT_EMPLOYEE_PASSWORD || 'employee123';
 
-function seedIfEmpty() {
-  ensureEmployeePasswordColumn();
-
-  const adminCount = db.prepare('SELECT COUNT(*) AS c FROM admins').get().c;
+async function seedIfEmpty() {
+  const { rows: [{ c: adminCount }] } = await pool.query('SELECT COUNT(*)::int AS c FROM admins');
   if (adminCount === 0) {
     const username = process.env.ADMIN_USERNAME || 'admin';
     const password = process.env.ADMIN_PASSWORD || 'admin123';
     const hash = bcrypt.hashSync(password, 10);
-    db.prepare('INSERT INTO admins (username, password_hash) VALUES (?, ?)').run(username, hash);
+    await pool.query('INSERT INTO admins (username, password_hash) VALUES ($1, $2)', [username, hash]);
   }
 
-  const empCount = db.prepare('SELECT COUNT(*) AS c FROM employees').get().c;
+  const { rows: [{ c: empCount }] } = await pool.query('SELECT COUNT(*)::int AS c FROM employees');
   if (empCount === 0) {
-    const insert = db.prepare(
-      'INSERT INTO employees (emp_id, name, rfid_tag, department, shift, password_hash) VALUES (?, ?, ?, ?, ?, ?)'
-    );
     const defaultHash = bcrypt.hashSync(DEFAULT_EMPLOYEE_PASSWORD, 10);
     const employees = [
       ['EMP001', 'Akash', 'RFID1001', 'Inventory', '09:00-03:00'],
@@ -156,18 +174,20 @@ function seedIfEmpty() {
       ['EMP004', 'Priya', 'RFID1004', 'Packing', '09:00-03:00'],
       ['EMP005', 'Karthik', 'RFID1005', 'Logistics', '09:00-03:00'],
     ];
-    db.exec('BEGIN');
-    employees.forEach((r) => insert.run(...r, defaultHash));
-    db.exec('COMMIT');
+    for (const r of employees) {
+      await pool.query(
+        'INSERT INTO employees (emp_id, name, rfid_tag, department, shift, password_hash) VALUES ($1, $2, $3, $4, $5, $6)',
+        [...r, defaultHash]
+      );
+    }
   } else {
     // Backfill password_hash for employees seeded before this column existed.
-    const missingPassword = db.prepare('SELECT emp_id FROM employees WHERE password_hash IS NULL').all();
+    const { rows: missingPassword } = await pool.query('SELECT emp_id FROM employees WHERE password_hash IS NULL');
     if (missingPassword.length > 0) {
       const defaultHash = bcrypt.hashSync(DEFAULT_EMPLOYEE_PASSWORD, 10);
-      const update = db.prepare('UPDATE employees SET password_hash = ? WHERE emp_id = ?');
-      db.exec('BEGIN');
-      missingPassword.forEach((row) => update.run(defaultHash, row.emp_id));
-      db.exec('COMMIT');
+      for (const row of missingPassword) {
+        await pool.query('UPDATE employees SET password_hash = $1 WHERE emp_id = $2', [defaultHash, row.emp_id]);
+      }
     }
   }
 
@@ -181,19 +201,18 @@ function seedIfEmpty() {
     ['EMP103', 'Vishal', 'B3122A22', 'Stock Control', '09:00-03:00'],
     ['EMP104', 'Vaanavee', '0EB46F06', 'Packing', '09:00-03:00'],
   ];
-  const insertRealEmployee = db.prepare(
-    'INSERT OR IGNORE INTO employees (emp_id, name, rfid_tag, department, shift, password_hash) VALUES (?, ?, ?, ?, ?, ?)'
-  );
   const realEmployeeHash = bcrypt.hashSync(DEFAULT_EMPLOYEE_PASSWORD, 10);
-  db.exec('BEGIN');
-  realCardHolders.forEach((r) => insertRealEmployee.run(...r, realEmployeeHash));
-  db.exec('COMMIT');
-
-  const productCount = db.prepare('SELECT COUNT(*) AS c FROM products').get().c;
-  if (productCount === 0) {
-    const insert = db.prepare(
-      'INSERT INTO products (product_id, name, room, rack, unit, qty, expiry_date) VALUES (?, ?, ?, ?, ?, ?, ?)'
+  for (const r of realCardHolders) {
+    await pool.query(
+      `INSERT INTO employees (emp_id, name, rfid_tag, department, shift, password_hash)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       ON CONFLICT (rfid_tag) DO NOTHING`,
+      [...r, realEmployeeHash]
     );
+  }
+
+  const { rows: [{ c: productCount }] } = await pool.query('SELECT COUNT(*)::int AS c FROM products');
+  if (productCount === 0) {
     const products = [
       // Room 1 - Stationery
       ['ST001', 'A4 Paper Bundle', 'Room 1', 'A', 'Pack', 120, null],
@@ -235,18 +254,16 @@ function seedIfEmpty() {
       ['DC011', 'Paint Brushes Set', 'Room 3', 'E', 'Set', 90, null],
       ['DC012', 'Decorative Stickers', 'Room 3', 'E', 'Pack', 175, null],
     ];
-    db.exec('BEGIN');
-    products.forEach((r) => insert.run(...r));
-    db.exec('COMMIT');
+    for (const r of products) {
+      await pool.query(
+        'INSERT INTO products (product_id, name, room, rack, unit, qty, expiry_date) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+        r
+      );
+    }
   }
 
-  const movementCount = db.prepare('SELECT COUNT(*) AS c FROM movements').get().c;
+  const { rows: [{ c: movementCount }] } = await pool.query('SELECT COUNT(*)::int AS c FROM movements');
   if (movementCount === 0) {
-    const insert = db.prepare(
-      `INSERT INTO movements (date, emp_id, employee_name, room, rack, product_id, product_name, action, entry_time, exit_time, duration, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    );
-
     // Each employee patrols every rack (A-E) of their home room across the 9:00-3:00 shift,
     // so a full shift produces 5 RFID in/out events per employee per day.
     const RACK_PRODUCT = {
@@ -277,10 +294,10 @@ function seedIfEmpty() {
       (date) => date <= today
     );
 
-    db.exec('BEGIN');
-    logDates.forEach((date) => {
-      employeeSchedule.forEach((employee) => {
-        employee.rackOrder.forEach((rack, slot) => {
+    for (const date of logDates) {
+      for (const employee of employeeSchedule) {
+        for (let slot = 0; slot < employee.rackOrder.length; slot++) {
+          const rack = employee.rackOrder[slot];
           const [productId, productName] = RACK_PRODUCT[employee.room][rack];
           const entry = employee.times[slot];
           const duration = durations[slot];
@@ -297,33 +314,31 @@ function seedIfEmpty() {
             status = 'In Progress';
           }
 
-          insert.run(
-            date,
-            employee.emp,
-            employee.name,
-            employee.room,
-            rack,
-            productId,
-            productName,
-            slot % 2 === 0 ? 'Taken' : 'Placed',
-            entry,
-            exit,
-            durationLabel,
-            status
+          await pool.query(
+            `INSERT INTO movements (date, emp_id, employee_name, room, rack, product_id, product_name, action, entry_time, exit_time, duration, status)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+            [
+              date,
+              employee.emp,
+              employee.name,
+              employee.room,
+              rack,
+              productId,
+              productName,
+              slot % 2 === 0 ? 'Taken' : 'Placed',
+              entry,
+              exit,
+              durationLabel,
+              status,
+            ]
           );
-        });
-      });
-    });
-    db.exec('COMMIT');
+        }
+      }
+    }
   }
 
-  const roomEntryCount = db.prepare('SELECT COUNT(*) AS c FROM room_entries').get().c;
+  const { rows: [{ c: roomEntryCount }] } = await pool.query('SELECT COUNT(*)::int AS c FROM room_entries');
   if (roomEntryCount === 0) {
-    const insert = db.prepare(
-      `INSERT INTO room_entries (date, emp_id, employee_name, rfid_tag, room, entry_time, exit_time, duration, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    );
-
     // Each employee's door-scan brackets their rack tour for the day (a few minutes
     // before their first rack visit to a few minutes after their last).
     const roster = [
@@ -345,9 +360,8 @@ function seedIfEmpty() {
       return bh * 60 + bm - (ah * 60 + am);
     }
 
-    db.exec('BEGIN');
-    logDates.forEach((date) => {
-      roster.forEach((person) => {
+    for (const date of logDates) {
+      for (const person of roster) {
         let exit = person.out;
         let duration = `${minutesBetween(person.in, person.out)} mins`;
         let status = 'Completed';
@@ -359,33 +373,46 @@ function seedIfEmpty() {
           status = 'In Room';
         }
 
-        insert.run(date, person.emp, person.name, person.rfid, person.room, person.in, exit, duration, status);
-      });
-    });
-    db.exec('COMMIT');
+        await pool.query(
+          `INSERT INTO room_entries (date, emp_id, employee_name, rfid_tag, room, entry_time, exit_time, duration, status)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+          [date, person.emp, person.name, person.rfid, person.room, person.in, exit, duration, status]
+        );
+      }
+    }
   }
 
   // A few demo box transfers so the dashboard's Box Transfers view has data
   // before the vision model is trained. Real transfers are inserted live by the
   // monitor AI service via POST /api/transfers.
-  const transferCount = db.prepare('SELECT COUNT(*) AS c FROM box_transfers').get().c;
+  const { rows: [{ c: transferCount }] } = await pool.query('SELECT COUNT(*)::int AS c FROM box_transfers');
   if (transferCount === 0) {
-    const insert = db.prepare(
-      `INSERT INTO box_transfers (date, emp_id, employee_name, from_room, to_room, product_id, product_name, start_time, end_time, source, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    );
     const today = '2026-07-05';
     const demo = [
       [today, 'EMP001', 'Akash', 'Room 1', 'Room 2', 'ST001', 'A4 Paper Bundle', '10:12', '10:15', 'vision+qr', 'Completed'],
       [today, 'EMP003', 'Arjun', 'Room 2', 'Room 3', null, null, '11:48', '11:52', 'vision', 'Completed'],
       [today, 'EMP004', 'Priya', 'Room 3', 'Room 1', 'DC006', 'Gift Boxes', '13:05', '13:09', 'vision+qr', 'Completed'],
     ];
-    db.exec('BEGIN');
-    demo.forEach((r) => insert.run(...r));
-    db.exec('COMMIT');
+    for (const r of demo) {
+      await pool.query(
+        `INSERT INTO box_transfers (date, emp_id, employee_name, from_room, to_room, product_id, product_name, start_time, end_time, source, status)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+        r
+      );
+    }
   }
 }
 
-seedIfEmpty();
+let readyPromise = null;
 
-module.exports = db;
+// Called once from index.js before the server starts listening. Creates the
+// schema and seeds demo data if the tables are empty; safe to call repeatedly
+// (idempotent) since seeding is gated on each table's row count.
+function init() {
+  if (!readyPromise) {
+    readyPromise = exec(SCHEMA).then(seedIfEmpty);
+  }
+  return readyPromise;
+}
+
+module.exports = { prepare, exec, pool, init };
