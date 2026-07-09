@@ -35,7 +35,7 @@ router.get(
 
     const rows = await db
       .prepare(
-        `SELECT date, entry_time, exit_time, employee_name, emp_id, room, rack, product_id, product_name, action, duration, status
+        `SELECT date, entry_time, exit_time, employee_name, emp_id, room, rack, product_id, product_name, action, duration, status, quantity, source, notes
          FROM movements WHERE date = ? ORDER BY entry_time`
       )
       .all(date);
