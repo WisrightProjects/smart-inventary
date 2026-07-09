@@ -22,7 +22,7 @@ export default function Topbar() {
     month: "long",
     day: "numeric",
   });
-  const timeStr = now.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+  const timeStr = now.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", hour12: true });
 
   return (
     <header className="sticky top-0 z-10 h-20 px-8 flex items-center justify-between bg-surface-alt/70 backdrop-blur-xl border-b border-hairline/[0.06]">

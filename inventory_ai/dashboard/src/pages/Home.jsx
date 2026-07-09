@@ -23,6 +23,7 @@ import Badge from "../components/Badge.jsx";
 import ProgressBar from "../components/ProgressBar.jsx";
 import PageHeader from "../components/PageHeader.jsx";
 import { api } from "../api/client.js";
+import { useAuth } from "../context/AuthContext.jsx";
 
 ChartJS.register(CategoryScale, LinearScale, LineElement, PointElement, ArcElement, Tooltip, Legend);
 
@@ -50,6 +51,8 @@ const STATUS_TONE = {
 };
 
 export default function Home() {
+  const { user } = useAuth();
+  const isEmployee = user?.role === "employee";
   const [accuracy, setAccuracy] = useState(null);
   const [mismatch, setMismatch] = useState(null);
   const [lowStock, setLowStock] = useState([]);
@@ -211,6 +214,8 @@ export default function Home() {
         </div>
       </div>
 
+      {!isEmployee && (
+        <>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="card p-6 lg:col-span-2">
           <h3 className="font-semibold text-ink mb-4">Daily Verifications</h3>
@@ -269,6 +274,8 @@ export default function Home() {
           </tbody>
         </table>
       </div>
+        </>
+      )}
     </div>
   );
 }

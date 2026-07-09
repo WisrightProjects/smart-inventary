@@ -25,10 +25,10 @@ const LINKS = [
   { to: "/verification", label: "Verification", icon: ScanLine },
   { to: "/products", label: "Products", icon: Package },
   { to: "/workers", label: "Workers", icon: Users },
-  { to: "/analytics", label: "Analytics", icon: BarChart3 },
+  { to: "/analytics", label: "Analytics", icon: BarChart3, adminOnly: true },
   { to: "/qr-generator", label: "QR Generator", icon: QrCode, adminOnly: true },
   { to: "/qr-scanner", label: "QR Scanner", icon: ScanLine },
-  { to: "/settings", label: "Settings", icon: SettingsIcon },
+  { to: "/settings", label: "Settings", icon: SettingsIcon, adminOnly: true },
 ];
 
 export default function Sidebar() {
