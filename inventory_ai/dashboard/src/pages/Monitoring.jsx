@@ -71,13 +71,14 @@ export function CctvTab() {
         .catch((e) => setError(e.message));
     };
     refresh();
-    const poll = setInterval(refresh, 1500);
+    const isStarting = powering || (live?.power_on && !live?.camera_connected);
+    const poll = setInterval(refresh, isStarting ? 300 : 1000);
     const clock = setInterval(() => setNow(new Date()), 1000);
     return () => {
       clearInterval(poll);
       clearInterval(clock);
     };
-  }, []);
+  }, [powering, live?.power_on, live?.camera_connected]);
 
   const cameraOnline = !!live?.camera_connected;
   const powerOn = !!live?.power_on;
@@ -205,12 +206,20 @@ export function EmployeeTab() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    monitorApi.get("/room-entries/current").then(setCurrent).catch((e) => setError(e.message));
+    const refreshCurrent = () => monitorApi.get("/room-entries/current").then(setCurrent).catch((e) => setError(e.message));
+    refreshCurrent();
+    const poll = setInterval(refreshCurrent, 3000);
+    return () => clearInterval(poll);
   }, []);
 
   useEffect(() => {
-    monitorApi.get(`/room-entries?date=${date}`).then(setHistory).catch((e) => setError(e.message));
-    monitorApi.get(`/transfers?date=${date}`).then(setTransfers).catch(() => {});
+    const refreshHistoryAndTransfers = () => {
+      monitorApi.get(`/room-entries?date=${date}`).then(setHistory).catch((e) => setError(e.message));
+      monitorApi.get(`/transfers?date=${date}`).then(setTransfers).catch(() => {});
+    };
+    refreshHistoryAndTransfers();
+    const poll = setInterval(refreshHistoryAndTransfers, 5000);
+    return () => clearInterval(poll);
   }, [date]);
 
   return (
@@ -364,7 +373,10 @@ export function StockTab() {
   const { catalog, loading } = useCatalog();
 
   useEffect(() => {
-    monitorApi.get("/products/overview").then(setOverview).catch(() => {});
+    const refreshOverview = () => monitorApi.get("/products/overview").then(setOverview).catch(() => {});
+    refreshOverview();
+    const poll = setInterval(refreshOverview, 5000);
+    return () => clearInterval(poll);
   }, []);
 
   useEffect(() => {

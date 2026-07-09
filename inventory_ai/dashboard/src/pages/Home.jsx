@@ -62,16 +62,21 @@ export default function Home() {
   const [topProducts, setTopProducts] = useState([]);
 
   useEffect(() => {
-    api.get("/analytics/accuracy").then(setAccuracy).catch(() => {});
-    api.get("/analytics/mismatch-percentage").then(setMismatch).catch(() => {});
-    api.get("/inventory/low-stock").then(setLowStock).catch(() => {});
-    api.get("/alerts?resolved=false&limit=10").then(setAlerts).catch(() => {});
-    api.get("/history?limit=8").then(setRecent).catch(() => {});
-    api.get("/live/status").then(setCameraStatus).catch(() => {});
-    api.get("/workers").then(setWorkers).catch(() => {});
-    api.get("/analytics/daily-verifications").then(setDaily).catch(() => {});
-    api.get("/analytics/status-breakdown").then(setStatusBreakdown).catch(() => {});
-    api.get("/analytics/top-products").then(setTopProducts).catch(() => {});
+    const refresh = () => {
+      api.get("/analytics/accuracy").then(setAccuracy).catch(() => {});
+      api.get("/analytics/mismatch-percentage").then(setMismatch).catch(() => {});
+      api.get("/inventory/low-stock").then(setLowStock).catch(() => {});
+      api.get("/alerts?resolved=false&limit=10").then(setAlerts).catch(() => {});
+      api.get("/history?limit=8").then(setRecent).catch(() => {});
+      api.get("/live/status").then(setCameraStatus).catch(() => {});
+      api.get("/workers").then(setWorkers).catch(() => {});
+      api.get("/analytics/daily-verifications").then(setDaily).catch(() => {});
+      api.get("/analytics/status-breakdown").then(setStatusBreakdown).catch(() => {});
+      api.get("/analytics/top-products").then(setTopProducts).catch(() => {});
+    };
+    refresh();
+    const poll = setInterval(refresh, 5000);
+    return () => clearInterval(poll);
   }, []);
 
   const dailyData = {

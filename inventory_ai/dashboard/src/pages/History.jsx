@@ -28,8 +28,13 @@ export default function History() {
   const [status, setStatus] = useState("");
 
   useEffect(() => {
-    const query = status ? `?status=${status}&limit=200` : "?limit=200";
-    api.get(`/history${query}`).then(setTransactions).catch(() => {});
+    const refresh = () => {
+      const query = status ? `?status=${status}&limit=200` : "?limit=200";
+      api.get(`/history${query}`).then(setTransactions).catch(() => {});
+    };
+    refresh();
+    const poll = setInterval(refresh, 3000);
+    return () => clearInterval(poll);
   }, [status]);
 
   return (

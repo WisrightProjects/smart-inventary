@@ -7,7 +7,7 @@ from __future__ import annotations
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from backend.api import alerts, analytics, history, inventory, live, products, verify, workers
+from backend.api import alerts, analytics, history, inventory, live, products, sync, verify, workers
 from backend.config.settings import settings
 from backend.utils.logger import get_logger
 from database.session import init_db
@@ -32,6 +32,7 @@ app.include_router(inventory.router, prefix=settings.api_prefix)
 app.include_router(workers.router, prefix=settings.api_prefix)
 app.include_router(analytics.router, prefix=settings.api_prefix)
 app.include_router(alerts.router, prefix=settings.api_prefix)
+app.include_router(sync.router, prefix=settings.api_prefix)
 
 
 @app.on_event("startup")

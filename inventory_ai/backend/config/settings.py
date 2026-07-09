@@ -29,12 +29,15 @@ class Settings(BaseSettings):
 
     # --- RT-DETR model ---
     rtdetr_checkpoint: str = "PekingU/rtdetr_r50vd_coco_o365"
-    rtdetr_confidence_threshold: float = 0.5
+    rtdetr_confidence_threshold: float = 0.3
     rtdetr_device: str = "cpu"  # "cuda" if a GPU is available
 
     # --- Database ---
     database_path: Path = BASE_DIR / "database" / "inventory.db"
     database_url: str = ""
+
+    # --- Sync ---
+    remote_sync_url: str = "https://inventory.wisright.com/api"
 
     # --- Logging ---
     log_dir: Path = BASE_DIR / "backend" / "logs"

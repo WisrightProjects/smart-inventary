@@ -4,6 +4,7 @@ import PageHeader from "../components/PageHeader.jsx";
 import { useTheme } from "../context/ThemeContext.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { CctvTab, EmployeeTab, StockTab, GuidanceTab } from "./Monitoring.jsx";
+import { api } from "../api/client.js";
 
 const MONITORING_TABS = [
   { id: "cctv", label: "CCTV Monitoring", icon: Video },
@@ -59,6 +60,26 @@ export default function Settings() {
   const { user } = useAuth();
   const [monitorTab, setMonitorTab] = useState("cctv");
   const isAdmin = user?.role === "admin";
+
+  const [syncing, setSyncing] = useState(false);
+  const [syncStatus, setSyncStatus] = useState(null);
+
+  const handleSync = async () => {
+    setSyncing(true);
+    setSyncStatus(null);
+    try {
+      const res = await api.post("/sync/trigger", {});
+      if (res.status === "ok") {
+        setSyncStatus(res.message);
+      } else {
+        setSyncStatus(`Sync failed: ${res.message}`);
+      }
+    } catch (e) {
+      setSyncStatus(`Sync error: ${e.message}`);
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   return (
     <div className="flex flex-col gap-6">
@@ -144,6 +165,26 @@ export default function Settings() {
             </div>
           );
         })}
+      </div>
+
+      <div className="card p-6 flex items-start gap-4">
+        <div className="w-12 h-12 shrink-0 rounded-xl bg-gradient-to-br from-success to-emerald-400 flex items-center justify-center shadow-soft text-white">
+          <Server size={22} strokeWidth={2} />
+        </div>
+        <div className="flex-1">
+          <h3 className="font-semibold text-ink mb-1">Cloud Synchronization</h3>
+          <p className="text-sm text-muted leading-relaxed mb-3">
+            Sync local verifications, transactions, logs, and product stock levels directly to inventory.wisright.com.
+          </p>
+          <button
+            onClick={handleSync}
+            disabled={syncing}
+            className="btn-primary ripple flex items-center gap-2 !py-2 !px-4 text-sm disabled:opacity-50"
+          >
+            {syncing ? "Syncing..." : "Sync to Cloud Now"}
+          </button>
+          {syncStatus && <p className="text-xs mt-2 text-success font-medium">{syncStatus}</p>}
+        </div>
       </div>
 
       <div className="card p-6 flex items-start gap-4">

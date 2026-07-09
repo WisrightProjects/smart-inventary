@@ -24,9 +24,14 @@ export default function LiveDetection() {
 
   useEffect(() => {
     api.get("/live/status").then(setStatus).catch(() => {});
-    pollRef.current = setInterval(refresh, 1500);
-    return () => clearInterval(pollRef.current);
   }, []);
+
+  useEffect(() => {
+    const isStarting = pending === "start" || (status && !status.connected && pending);
+    const intervalTime = isStarting ? 300 : 1000;
+    pollRef.current = setInterval(refresh, intervalTime);
+    return () => clearInterval(pollRef.current);
+  }, [pending, status?.connected]);
 
   const [streamKey, setStreamKey] = useState(0);
 

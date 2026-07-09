@@ -64,6 +64,11 @@ def verify_box(payload: VerifyRequest, db: Session = Depends(get_db)) -> VerifyR
 
     logger.info("Verified box %s -> %s", payload.box_id, result.status.value)
 
+    # Automatically push local verifications/stock changes to the remote database
+    import threading
+    from backend.api.sync import trigger_sync_push
+    threading.Thread(target=trigger_sync_push, daemon=True).start()
+
     return VerifyResponse(
         status=result.status.value,
         expected=result.expected,

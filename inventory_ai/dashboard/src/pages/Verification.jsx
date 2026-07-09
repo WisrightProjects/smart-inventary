@@ -26,7 +26,10 @@ export default function Verification() {
 
   useEffect(() => {
     api.get("/workers").then(setWorkers).catch(() => {});
-    api.get("/history?limit=6").then(setRecent).catch(() => {});
+    const refreshRecent = () => api.get("/history?limit=6").then(setRecent).catch(() => {});
+    refreshRecent();
+    const poll = setInterval(refreshRecent, 5000);
+    return () => clearInterval(poll);
   }, []);
 
   const runVerification = async () => {

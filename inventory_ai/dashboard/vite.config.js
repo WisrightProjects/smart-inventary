@@ -8,9 +8,8 @@ export default defineConfig({
     proxy: {
       "/api": "http://localhost:8000",
       "/monitor-api": {
-        target: "http://localhost:4000",
+        target: "https://inventory.wisright.com",
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/monitor-api/, "/api"),
       },
       "/monitor-ai-api": {
         target: "http://localhost:5001",
