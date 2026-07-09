@@ -149,7 +149,7 @@ export function CctvTab() {
         <div className="card p-4 flex flex-col gap-1">
           <Clock size={16} className="text-muted" />
           <p className="text-xs text-muted">Time</p>
-          <p className="text-lg font-semibold text-ink">{now.toLocaleTimeString()}</p>
+          <p className="text-lg font-semibold text-ink">{now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit", hour12: true })}</p>
         </div>
       </div>
 

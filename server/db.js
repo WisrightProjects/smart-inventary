@@ -401,6 +401,22 @@ async function seedIfEmpty() {
       );
     }
   }
+
+  // Dummy alerts so the alerts feed has data before the monitor AI service
+  // starts posting real unauthorized-person events via POST /api/alerts.
+  const { rows: [{ c: alertCount }] } = await pool.query('SELECT COUNT(*)::int AS c FROM alerts');
+  if (alertCount === 0) {
+    const demoAlerts = [
+      ['unauthorized_person', 'Unknown', 'Room 2', '2026-07-05T11:48:00.000Z', 'open'],
+      ['unauthorized_person', 'Unknown', 'Room 1', '2026-07-05T10:22:00.000Z', 'open'],
+      ['tailgating', 'Unknown', 'Room 3', '2026-07-05T13:05:00.000Z', 'open'],
+      ['unauthorized_person', 'Unknown', 'Room 1', '2026-07-04T15:40:00.000Z', 'resolved'],
+      ['unauthorized_person', 'Unknown', 'Room 2', '2026-07-04T09:12:00.000Z', 'resolved'],
+    ];
+    for (const a of demoAlerts) {
+      await pool.query('INSERT INTO alerts (type, person, room, time, status) VALUES ($1, $2, $3, $4, $5)', a);
+    }
+  }
 }
 
 let readyPromise = null;
