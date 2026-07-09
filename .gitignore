@@ -8,3 +8,4 @@ client/dist/
 .run-logs/
 tunnel-url.txt
 .claude/
+presentation-source-code/

@@ -5,7 +5,10 @@ import Badge from "../components/Badge.jsx";
 import ProgressBar from "../components/ProgressBar.jsx";
 import { monitorApi } from "../api/monitorClient.js";
 
-const AI_BASE_URL = "/monitor-ai-api";
+const CAMERA_ZONES = [
+  { id: "room1", label: "Room 1 (Webcam)", baseUrl: "/monitor-ai-api" },
+  { id: "entrance", label: "Entrance (IP Camera)", baseUrl: "/monitor-ai-api-entrance" },
+];
 
 const ROOMS = ["Room 1", "Room 2", "Room 3"];
 const RACKS = ["A", "B", "C", "D", "E"];
@@ -54,14 +57,51 @@ export default function Monitoring() {
 }
 
 function CctvTab() {
+  const [zone, setZone] = useState(CAMERA_ZONES[0].id);
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="card p-4 flex items-start gap-3 bg-info/[0.04] border-info/20">
+        <AlertCircle size={18} className="text-info shrink-0 mt-0.5" />
+        <p className="text-xs text-muted leading-relaxed">
+          Identity matching assigns tracked people to active RFID sessions by order of
+          appearance (oldest unassigned check-in claims the next new track) — it is not
+          biometric face recognition, and works best with one new person entering at a time.
+        </p>
+      </div>
+
+      <div className="inline-flex flex-wrap rounded-xl bg-hairline/[0.05] p-1 gap-1 w-fit">
+        {CAMERA_ZONES.map((z) => (
+          <button
+            key={z.id}
+            onClick={() => setZone(z.id)}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              zone === z.id ? "bg-surface-alt text-ink shadow-soft" : "text-muted"
+            }`}
+          >
+            {z.label}
+          </button>
+        ))}
+      </div>
+
+      {CAMERA_ZONES.filter((z) => z.id === zone).map((z) => (
+        <CameraZoneFeed key={z.id} baseUrl={z.baseUrl} />
+      ))}
+    </div>
+  );
+}
+
+function CameraZoneFeed({ baseUrl }) {
   const [live, setLive] = useState(null);
   const [error, setError] = useState(null);
   const [now, setNow] = useState(new Date());
   const [streamKey] = useState(() => Date.now());
 
   useEffect(() => {
+    setLive(null);
+    setError(null);
     const refresh = () => {
-      fetch(`${AI_BASE_URL}/live`)
+      fetch(`${baseUrl}/live`)
         .then((res) => {
           if (!res.ok) throw new Error(`AI service returned ${res.status}`);
           return res.json();
@@ -76,21 +116,12 @@ function CctvTab() {
       clearInterval(poll);
       clearInterval(clock);
     };
-  }, []);
+  }, [baseUrl]);
 
   const cameraOnline = !!live?.camera_connected;
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="card p-4 flex items-start gap-3 bg-info/[0.04] border-info/20">
-        <AlertCircle size={18} className="text-info shrink-0 mt-0.5" />
-        <p className="text-xs text-muted leading-relaxed">
-          Identity matching assigns tracked people to active RFID sessions by order of
-          appearance (oldest unassigned check-in claims the next new track) — it is not
-          biometric face recognition, and works best with one new person entering at a time.
-        </p>
-      </div>
-
       {error && <p className="text-sm text-danger">{error}</p>}
 
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
@@ -126,7 +157,7 @@ function CctvTab() {
       <div className="card overflow-hidden">
         <img
           key={streamKey}
-          src={`${AI_BASE_URL}/stream`}
+          src={`${baseUrl}/stream`}
           alt={`Live feed — ${live?.room ?? "camera"}`}
           className="w-full h-auto bg-black block"
         />

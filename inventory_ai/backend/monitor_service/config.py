@@ -13,8 +13,12 @@ from dotenv import load_dotenv
 
 # Dedicated env file (not inventory_ai/.env - that one is loaded by the main
 # FastAPI app's Settings, which forbids unrecognized keys) so these two
-# services' configs never collide.
-load_dotenv(Path(__file__).resolve().parent / ".env")
+# services' configs never collide. MONITOR_ENV_FILE lets a second instance of
+# this same service (e.g. an "Entrance" IP-camera zone alongside the default
+# "Room 1" webcam zone) load a different env file/port instead of duplicating
+# this module - see .env.entrance and docs/camera-swap.md.
+_env_file = os.environ.get("MONITOR_ENV_FILE", ".env")
+load_dotenv(Path(__file__).resolve().parent / _env_file)
 
 
 def _camera_source() -> int | str:
