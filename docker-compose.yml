@@ -79,9 +79,12 @@ services:
       - 'inv-data:/data'
     expose:
       - '8000'
-    # Seed the demo DB on first boot (idempotent — skips if products exist), then serve.
+    # Seed the demo DB on first boot (idempotent — skips if products exist), backfill a
+    # few low-stock products for the dashboard demo (idempotent — skips if any already
+    # low), then serve.
     command: >-
       sh -c "python -m database.seed || true;
+             python -m database.fix_low_stock || true;
              exec uvicorn backend.main:app --host 0.0.0.0 --port 8000"
     healthcheck:
       test:
