@@ -25,3 +25,4 @@ dataset/labels/*
 
 # Env
 .env
+.env.entrance
