@@ -10,6 +10,7 @@
 #include <SPI.h>
 #include <MFRC522.h>
 #include <WiFi.h>
+#include <WiFiClientSecure.h>
 #include <HTTPClient.h>
 #include <WebServer.h>
 #include <time.h>
@@ -19,8 +20,10 @@ const char* WIFI_SSID     = "Wisright";
 const char* WIFI_PASSWORD = "26488668";
 
 // ---------------- Backend ----------------
-const char* SERVER_HOST = "192.168.29.106";
-const int   SERVER_PORT = 4000;
+// Production Node API, publicly exposed over HTTPS via Coolify/Traefik (see
+// docker-compose.yml -> node service -> SERVICE_FQDN_NODE_4000). No port here:
+// Traefik terminates TLS on 443 and routes by hostname.
+const char* SERVER_HOST = "api.wisright.com";
 const char* ROOM_NAME   = "Room 1";
 
 // ---------------- Web Server & Devices ----------------
@@ -91,12 +94,18 @@ String readUID() {
 }
 
 String backendUrl(const char* path) {
-  return "http://" + String(SERVER_HOST) + ":" + String(SERVER_PORT) + path;
+  return "https://" + String(SERVER_HOST) + path;
 }
 
 int postJson(const String& url, const String& jsonBody, String& responseBody) {
+  // The ESP32 doesn't ship trusted root CAs by default, so we skip cert
+  // validation (setInsecure) rather than embed/maintain Let's Encrypt's
+  // chain on-device. Traffic is still encrypted end-to-end; this only
+  // means the device won't detect a MITM presenting a fake certificate.
+  WiFiClientSecure client;
+  client.setInsecure();
   HTTPClient http;
-  http.begin(url);
+  http.begin(client, url);
   http.addHeader("Content-Type", "application/json");
   int code = http.POST(jsonBody);
   responseBody = http.getString();
@@ -156,7 +165,7 @@ void handleRoot() {
   // Card 2: System Configuration
   html += "<div class='card'>";
   html += "<h3>Configuration</h3>";
-  html += "<div class='stat-row'><span class='stat-label'>Backend Server</span><span class='stat-value'>" + String(SERVER_HOST) + ":" + String(SERVER_PORT) + "</span></div>";
+  html += "<div class='stat-row'><span class='stat-label'>Backend Server</span><span class='stat-value'>" + String(SERVER_HOST) + " (HTTPS)</span></div>";
   html += "<div class='stat-row'><span class='stat-label'>Room Name</span><span class='stat-value'>" + String(ROOM_NAME) + "</span></div>";
   html += "<div class='stat-row'><span class='stat-label'>RFID SS Pin</span><span class='stat-value'>" + (detectedSS == -1 ? "Checking..." : String(detectedSS)) + "</span></div>";
   html += "<div class='stat-row'><span class='stat-label'>RFID RST Pin</span><span class='stat-value'>" + (detectedRST == -1 ? "Checking..." : String(detectedRST)) + "</span></div>";

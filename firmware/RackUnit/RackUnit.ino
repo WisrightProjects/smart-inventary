@@ -13,6 +13,7 @@
 #include <SPI.h>
 #include <MFRC522.h>
 #include <WiFi.h>
+#include <WiFiClientSecure.h>
 #include <HTTPClient.h>
 
 // ---------------- WiFi ----------------
@@ -20,8 +21,10 @@ const char* WIFI_SSID     = "Wisright";
 const char* WIFI_PASSWORD = "26488668";
 
 // ---------------- Backend ----------------
-const char* SERVER_HOST = "192.168.29.106";
-const int   SERVER_PORT = 4000;
+// Production Node API, publicly exposed over HTTPS via Coolify/Traefik (see
+// docker-compose.yml -> node service -> SERVICE_FQDN_NODE_4000). No port here:
+// Traefik terminates TLS on 443 and routes by hostname.
+const char* SERVER_HOST = "api.wisright.com";
 const char* ROOM_NAME   = "Room 1";
 const char* RACK_NAME   = "A";
 
@@ -42,7 +45,7 @@ String readUID() {
 }
 
 String backendUrl(const char* path) {
-  return "http://" + String(SERVER_HOST) + ":" + String(SERVER_PORT) + path;
+  return "https://" + String(SERVER_HOST) + path;
 }
 
 bool tryRFID(int ssPin, int rstPin, int sckPin, int misoPin, int mosiPin) {
@@ -117,8 +120,12 @@ void loop() {
     String body = "{\"rfidTag\":\"" + uid + "\",\"rack\":\"" + String(RACK_NAME) +
                   "\",\"room\":\"" + String(ROOM_NAME) + "\"}";
 
+    // setInsecure(): skip cert validation rather than embed/maintain a root CA
+    // bundle on-device. Traffic is still encrypted; only MITM detection is skipped.
+    WiFiClientSecure client;
+    client.setInsecure();
     HTTPClient http;
-    http.begin(backendUrl("/api/rfid/rack-scan"));
+    http.begin(client, backendUrl("/api/rfid/rack-scan"));
     http.addHeader("Content-Type", "application/json");
     int code = http.POST(body);
     String response = http.getString();
