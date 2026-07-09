@@ -29,9 +29,13 @@ export default function LiveDetection() {
     const canvas = canvasRef.current;
     if (!video || !canvas || video.videoWidth === 0) return;
 
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    canvas.getContext("2d").drawImage(video, 0, 0);
+    // Downscale to at most 640px wide before sending — cuts the JPEG upload +
+    // decode time (RT-DETR resizes internally anyway, so accuracy is unaffected).
+    const MAX_W = 640;
+    const scale = Math.min(1, MAX_W / video.videoWidth);
+    canvas.width = Math.round(video.videoWidth * scale);
+    canvas.height = Math.round(video.videoHeight * scale);
+    canvas.getContext("2d").drawImage(video, 0, 0, canvas.width, canvas.height);
     const image = canvas.toDataURL("image/jpeg", 0.6);
 
     inFlight.current = true;
