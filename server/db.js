@@ -82,6 +82,12 @@ CREATE TABLE IF NOT EXISTS movements (
   status TEXT NOT NULL
 );
 
+-- Added for manually-logged stock placements (Verification page "Manual Entry"
+-- tab) alongside the RFID/vision-tracked rows already in this table.
+ALTER TABLE movements ADD COLUMN IF NOT EXISTS quantity INTEGER;
+ALTER TABLE movements ADD COLUMN IF NOT EXISTS source TEXT NOT NULL DEFAULT 'auto';
+ALTER TABLE movements ADD COLUMN IF NOT EXISTS notes TEXT;
+
 CREATE TABLE IF NOT EXISTS room_entries (
   id SERIAL PRIMARY KEY,
   date TEXT NOT NULL,

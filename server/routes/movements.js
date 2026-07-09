@@ -79,4 +79,53 @@ router.get(
   })
 );
 
+function nowTime(date) {
+  return date.toTimeString().slice(0, 8);
+}
+
+// Admin: manually log a stock placement (e.g. new stock arriving and being
+// sent to a room/rack) without going through the RFID/vision pipeline.
+router.post(
+  '/',
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const { empId, productId, room, rack, action, quantity, notes } = req.body;
+    if (!empId || !productId || !room || !rack) {
+      return res.status(400).json({ error: 'empId, productId, room, and rack are required' });
+    }
+
+    const employee = await db.prepare('SELECT name FROM employees WHERE emp_id = ?').get(empId);
+    if (!employee) return res.status(404).json({ error: 'Employee not found' });
+
+    const product = await db.prepare('SELECT name FROM products WHERE product_id = ?').get(productId);
+    if (!product) return res.status(404).json({ error: 'Product not found' });
+
+    const now = new Date();
+    const { rows } = await db
+      .prepare(
+        `INSERT INTO movements
+           (date, emp_id, employee_name, room, rack, product_id, product_name, action, entry_time, status, quantity, source, notes)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         RETURNING id`
+      )
+      .run(
+        fmt(now),
+        empId,
+        employee.name,
+        room,
+        rack,
+        productId,
+        product.name,
+        action || 'Stock In',
+        nowTime(now),
+        'Completed',
+        quantity != null ? Number(quantity) : null,
+        'manual',
+        notes || null
+      );
+
+    res.status(201).json({ id: rows[0].id });
+  })
+);
+
 module.exports = router;

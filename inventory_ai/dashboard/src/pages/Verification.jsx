@@ -1,9 +1,14 @@
 import { useEffect, useState } from "react";
-import { ScanLine, CheckCircle2, XCircle, Loader2, PackageSearch, History as HistoryIcon } from "lucide-react";
+import { ScanLine, CheckCircle2, XCircle, Loader2, PackageSearch, History as HistoryIcon, ClipboardPlus } from "lucide-react";
 import PageHeader from "../components/PageHeader.jsx";
 import Badge from "../components/Badge.jsx";
 import ProgressBar from "../components/ProgressBar.jsx";
 import { api } from "../api/client.js";
+import { monitorApi } from "../api/monitorClient.js";
+
+const ROOMS = ["Room 1", "Room 2", "Room 3"];
+const RACKS = ["A", "B", "C", "D", "E"];
+const ACTIONS = ["Stock In", "Stock Out", "Transfer"];
 
 const STATUS_TONE = {
   VERIFIED: "success",
@@ -29,6 +34,7 @@ const STEPS = ["Scan Box ID", "Select Worker", "Capture Frame", "Run RT-DETR", "
 const TABS = [
   { id: "verify", label: "Verify Box", icon: ScanLine },
   { id: "history", label: "Verification History", icon: HistoryIcon },
+  { id: "manual", label: "Manual Entry", icon: ClipboardPlus },
 ];
 
 export default function Verification() {
@@ -41,7 +47,9 @@ export default function Verification() {
         subtitle={
           tab === "verify"
             ? "Scan a box to verify product and quantity against expected inventory"
-            : "Audit log of box verification transactions"
+            : tab === "history"
+            ? "Audit log of box verification transactions"
+            : "Log new stock being sent to a room/rack without scanning"
         }
       />
 
@@ -62,7 +70,9 @@ export default function Verification() {
         })}
       </div>
 
-      {tab === "verify" ? <VerifyBoxTab /> : <HistoryTab />}
+      {tab === "verify" && <VerifyBoxTab />}
+      {tab === "history" && <HistoryTab />}
+      {tab === "manual" && <ManualEntryTab />}
     </div>
   );
 }
@@ -227,6 +237,194 @@ function VerifyBoxTab() {
             {recent.length === 0 && <li className="py-2.5 text-sm text-muted">No verifications yet.</li>}
           </ul>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function ManualEntryTab() {
+  const [employees, setEmployees] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [empId, setEmpId] = useState("");
+  const [productId, setProductId] = useState("");
+  const [room, setRoom] = useState("");
+  const [rack, setRack] = useState("");
+  const [action, setAction] = useState(ACTIONS[0]);
+  const [quantity, setQuantity] = useState("");
+  const [notes, setNotes] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
+  const [recent, setRecent] = useState([]);
+
+  const loadRecent = () =>
+    monitorApi
+      .get("/movements?date=" + new Date().toISOString().slice(0, 10))
+      .then((rows) => setRecent(rows.filter((r) => r.source === "manual").slice(-10).reverse()))
+      .catch(() => {});
+
+  useEffect(() => {
+    monitorApi.get("/employees").then(setEmployees).catch(() => {});
+    monitorApi.get("/products").then(setProducts).catch(() => {});
+    loadRecent();
+  }, []);
+
+  const reset = () => {
+    setProductId("");
+    setRoom("");
+    setRack("");
+    setAction(ACTIONS[0]);
+    setQuantity("");
+    setNotes("");
+  };
+
+  const submit = async () => {
+    setError(null);
+    setSuccess(null);
+    setSubmitting(true);
+    try {
+      await monitorApi.post("/movements", {
+        empId,
+        productId,
+        room,
+        rack,
+        action,
+        quantity: quantity ? Number(quantity) : null,
+        notes,
+      });
+      setSuccess("Entry logged.");
+      reset();
+      loadRecent();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const canSubmit = empId && productId && room && rack && !submitting;
+
+  return (
+    <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 animate-fadeIn">
+      <div className="xl:col-span-2 card p-8 flex flex-col gap-4">
+        <h3 className="font-semibold text-ink">New Stock Placement</h3>
+        <p className="text-sm text-muted -mt-2">
+          Record new stock arriving and which room/rack it's being sent to — no scan required.
+        </p>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
+          <label className="text-sm font-medium text-ink">
+            Logged By (Employee)
+            <select value={empId} onChange={(e) => setEmpId(e.target.value)} className="input-field mt-1.5">
+              <option value="">Select employee</option>
+              {employees.map((e) => (
+                <option key={e.emp_id} value={e.emp_id}>
+                  {e.name} — {e.department}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="text-sm font-medium text-ink">
+            Product
+            <select value={productId} onChange={(e) => setProductId(e.target.value)} className="input-field mt-1.5">
+              <option value="">Select product</option>
+              {products.map((p) => (
+                <option key={p.product_id} value={p.product_id}>
+                  {p.name} ({p.product_id})
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="text-sm font-medium text-ink">
+            Floor / Room
+            <select value={room} onChange={(e) => setRoom(e.target.value)} className="input-field mt-1.5">
+              <option value="">Select room</option>
+              {ROOMS.map((r) => (
+                <option key={r} value={r}>
+                  {r}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="text-sm font-medium text-ink">
+            Rack
+            <select value={rack} onChange={(e) => setRack(e.target.value)} className="input-field mt-1.5">
+              <option value="">Select rack</option>
+              {RACKS.map((r) => (
+                <option key={r} value={r}>
+                  Rack {r}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="text-sm font-medium text-ink">
+            Action
+            <select value={action} onChange={(e) => setAction(e.target.value)} className="input-field mt-1.5">
+              {ACTIONS.map((a) => (
+                <option key={a} value={a}>
+                  {a}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="text-sm font-medium text-ink">
+            Quantity
+            <input
+              type="number"
+              min="0"
+              value={quantity}
+              onChange={(e) => setQuantity(e.target.value)}
+              placeholder="e.g. 20"
+              className="input-field mt-1.5"
+            />
+          </label>
+        </div>
+
+        <label className="text-sm font-medium text-ink">
+          Notes (optional)
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="e.g. New shipment from supplier, box #4"
+            rows={3}
+            className="input-field mt-1.5 resize-none"
+          />
+        </label>
+
+        <button
+          onClick={submit}
+          disabled={!canSubmit}
+          className="btn-primary ripple flex items-center justify-center gap-2 mt-2 py-3"
+        >
+          {submitting ? <Loader2 size={18} className="animate-spin" /> : <ClipboardPlus size={18} />}
+          {submitting ? "Logging…" : "Log Entry"}
+        </button>
+
+        {error && <p className="text-sm text-danger text-center">{error}</p>}
+        {success && <p className="text-sm text-success text-center">{success}</p>}
+      </div>
+
+      <div className="card p-6">
+        <h3 className="font-semibold text-ink mb-4">Recent Manual Entries</h3>
+        <ul className="flex flex-col divide-y divide-hairline/[0.05]">
+          {recent.map((r, i) => (
+            <li key={i} className="py-2.5 text-sm flex flex-col gap-0.5">
+              <div className="flex items-center justify-between">
+                <span className="text-ink font-medium">{r.product_name}</span>
+                <Badge tone="info">{r.action}</Badge>
+              </div>
+              <span className="text-xs text-muted">
+                {r.room} · Rack {r.rack} · {r.employee_name} · {r.entry_time}
+              </span>
+            </li>
+          ))}
+          {recent.length === 0 && <li className="py-2.5 text-sm text-muted">No manual entries logged today.</li>}
+        </ul>
       </div>
     </div>
   );
