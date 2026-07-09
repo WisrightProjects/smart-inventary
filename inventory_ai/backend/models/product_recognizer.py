@@ -31,6 +31,7 @@ _COCO_TO_CATALOG = {
     "bottle": "Water Bottle",
     "handbag": "Bag",
     "backpack": "Bag",
+    "suitcase": "Bag",
 }
 
 
