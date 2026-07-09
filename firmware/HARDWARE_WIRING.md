@@ -52,12 +52,16 @@ Unit** — wire both sets the same way.
   board's 3.3V rail.
 - The two units are physically separate and do not share power or
   ground. Both join your **regular WiFi network** (not a standalone
-  Access Point) and both talk directly to the Node backend's REST API —
-  see [EntranceUnit.ino](EntranceUnit/EntranceUnit.ino) and
-  [RackUnit.ino](RackUnit/RackUnit.ino): fill in `WIFI_SSID`,
-  `WIFI_PASSWORD`, and `SERVER_HOST` (the LAN IP of the computer running
-  `server/index.js`, e.g. from `ipconfig`) near the top of each file
-  before flashing.
+  Access Point) and both talk directly to the Node backend's REST API
+  over HTTPS at the production domain — see
+  [EntranceUnit.ino](EntranceUnit/EntranceUnit.ino) and
+  [RackUnit.ino](RackUnit/RackUnit.ino): fill in `WIFI_SSID` and
+  `WIFI_PASSWORD` near the top of each file before flashing.
+  `SERVER_HOST` is preset to `api.wisright.com` (the public Node API,
+  see `docker-compose.yml` → `node` → `SERVICE_FQDN_NODE_4000`) — only
+  change it if you're testing against a local dev backend on your LAN
+  instead (e.g. `192.168.x.x`, and switch `backendUrl()` back to
+  `http://` with a `:4000` port in that case).
 
 ## Changing the pins
 

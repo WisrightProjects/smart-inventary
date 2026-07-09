@@ -10,17 +10,27 @@
 #include <SPI.h>
 #include <MFRC522.h>
 #include <WiFi.h>
+#include <WiFiClientSecure.h>
 #include <HTTPClient.h>
 #include <WebServer.h>
+#include <time.h>
 
 // ---------------- WiFi ----------------
 const char* WIFI_SSID     = "Wisright";
 const char* WIFI_PASSWORD = "26488668";
 
 // ---------------- Backend ----------------
-const char* SERVER_HOST = "192.168.29.106";
-const int   SERVER_PORT = 4000;
-const char* ROOM_NAME   = "Room 1";
+// Routed through the dashboard's own nginx proxy (same host that already
+// works in a browser at https://inventory.wisright.com) rather than a
+// dedicated api.wisright.com subdomain - that domain has no DNS record yet,
+// which made every request fail with HTTP -1 (couldn't even resolve the
+// hostname). This path works today with zero extra DNS/Coolify setup:
+//   https://inventory.wisright.com/monitor-api/*  ->  node:4000/api/*
+// Switch SERVER_HOST/API_PREFIX back to "api.wisright.com" + "/api" once
+// that subdomain has a real DNS record and SERVICE_FQDN_NODE_4000 is live.
+const char* SERVER_HOST  = "inventory.wisright.com";
+const char* API_PREFIX   = "/monitor-api";
+const char* ROOM_NAME    = "Room 1";
 
 // ---------------- Web Server & Devices ----------------
 WebServer server(80);
@@ -39,17 +49,39 @@ struct ScanLog {
   String uid;
   String action;
   String status;
+  String time;
 };
 const int MAX_LOGS = 10;
 ScanLog scanLogs[MAX_LOGS];
 int logCount = 0;
 int logHead = 0;
 
+// NTP-synced wall-clock time (IST, UTC+5:30) so tap in/out entries show a real
+// time of day instead of "seconds since boot". Falls back to uptime if NTP
+// hasn't synced yet (e.g. right after boot, before the first sync completes).
+const long GMT_OFFSET_SEC = 5 * 3600 + 1800;
+const int DAYLIGHT_OFFSET_SEC = 0;
+const char* NTP_SERVER = "pool.ntp.org";
+
+String getTimeString() {
+  struct tm timeinfo;
+  if (!getLocalTime(&timeinfo, 200)) {
+    unsigned long totalSeconds = millis() / 1000UL;
+    char buf[16];
+    sprintf(buf, "+%02lu:%02lu:%02lu", (totalSeconds / 3600) % 24, (totalSeconds / 60) % 60, totalSeconds % 60);
+    return String(buf);
+  }
+  char buf[16];
+  strftime(buf, sizeof(buf), "%H:%M:%S", &timeinfo);
+  return String(buf);
+}
+
 void addScanLog(const String& uid, const String& action, const String& status) {
   scanLogs[logHead].uid = uid;
   scanLogs[logHead].action = action;
   scanLogs[logHead].status = status;
-  
+  scanLogs[logHead].time = getTimeString();
+
   logHead = (logHead + 1) % MAX_LOGS;
   if (logCount < MAX_LOGS) {
     logCount++;
@@ -68,12 +100,18 @@ String readUID() {
 }
 
 String backendUrl(const char* path) {
-  return "http://" + String(SERVER_HOST) + ":" + String(SERVER_PORT) + path;
+  return "https://" + String(SERVER_HOST) + String(API_PREFIX) + path;
 }
 
 int postJson(const String& url, const String& jsonBody, String& responseBody) {
+  // The ESP32 doesn't ship trusted root CAs by default, so we skip cert
+  // validation (setInsecure) rather than embed/maintain Let's Encrypt's
+  // chain on-device. Traffic is still encrypted end-to-end; this only
+  // means the device won't detect a MITM presenting a fake certificate.
+  WiFiClientSecure client;
+  client.setInsecure();
   HTTPClient http;
-  http.begin(url);
+  http.begin(client, url);
   http.addHeader("Content-Type", "application/json");
   int code = http.POST(jsonBody);
   responseBody = http.getString();
@@ -86,7 +124,7 @@ void sendHeartbeat() {
   String ipStr = WiFi.localIP().toString();
   String body = "{\"deviceName\":\"Entrance Unit\",\"room\":\"" + String(ROOM_NAME) + "\",\"ip\":\"" + ipStr + "\"}";
   String response;
-  int code = postJson(backendUrl("/api/rfid/heartbeat"), body, response);
+  int code = postJson(backendUrl("/rfid/heartbeat"), body, response);
   if (code == 200) {
     Serial.println("Heartbeat OK -> IP: " + ipStr);
   } else {
@@ -133,7 +171,7 @@ void handleRoot() {
   // Card 2: System Configuration
   html += "<div class='card'>";
   html += "<h3>Configuration</h3>";
-  html += "<div class='stat-row'><span class='stat-label'>Backend Server</span><span class='stat-value'>" + String(SERVER_HOST) + ":" + String(SERVER_PORT) + "</span></div>";
+  html += "<div class='stat-row'><span class='stat-label'>Backend Server</span><span class='stat-value'>" + String(SERVER_HOST) + " (HTTPS)</span></div>";
   html += "<div class='stat-row'><span class='stat-label'>Room Name</span><span class='stat-value'>" + String(ROOM_NAME) + "</span></div>";
   html += "<div class='stat-row'><span class='stat-label'>RFID SS Pin</span><span class='stat-value'>" + (detectedSS == -1 ? "Checking..." : String(detectedSS)) + "</span></div>";
   html += "<div class='stat-row'><span class='stat-label'>RFID RST Pin</span><span class='stat-value'>" + (detectedRST == -1 ? "Checking..." : String(detectedRST)) + "</span></div>";
@@ -147,10 +185,10 @@ void handleRoot() {
   html += "<div class='card' style='margin-bottom: 25px;'>";
   html += "<h3>Recent RFID Scan Activity</h3>";
   html += "<table>";
-  html += "<thead><tr><th>#</th><th>RFID UID</th><th>Action</th><th>Status / Response</th></tr></thead>";
+  html += "<thead><tr><th>#</th><th>RFID UID</th><th>Action</th><th>Time</th><th>Status / Response</th></tr></thead>";
   html += "<tbody>";
   if (logCount == 0) {
-    html += "<tr><td colspan='4' style='text-align: center; color: #9ca3af;'>No scan activity recorded yet.</td></tr>";
+    html += "<tr><td colspan='5' style='text-align: center; color: #9ca3af;'>No scan activity recorded yet.</td></tr>";
   } else {
     for (int i = 0; i < logCount; i++) {
       int idx = (logHead - 1 - i + MAX_LOGS) % MAX_LOGS;
@@ -158,6 +196,7 @@ void handleRoot() {
       html += "<td>" + String(i + 1) + "</td>";
       html += "<td><code>" + scanLogs[idx].uid + "</code></td>";
       html += "<td>" + scanLogs[idx].action + "</td>";
+      html += "<td><code>" + scanLogs[idx].time + "</code></td>";
       html += "<td>" + scanLogs[idx].status + "</td>";
       html += "</tr>";
     }
@@ -204,7 +243,7 @@ void handleTap(const String& uid) {
 
   String checkinBody = "{\"rfidTag\":\"" + uid + "\",\"room\":\"" + String(ROOM_NAME) + "\"}";
   String response;
-  int code = postJson(backendUrl("/api/rfid/checkin"), checkinBody, response);
+  int code = postJson(backendUrl("/rfid/checkin"), checkinBody, response);
 
   if (code == 200) {
     Serial.println("LOGIN OK  -> " + response);
@@ -214,7 +253,7 @@ void handleTap(const String& uid) {
 
   if (code == 409) {
     String checkoutBody = "{\"rfidTag\":\"" + uid + "\"}";
-    code = postJson(backendUrl("/api/rfid/checkout"), checkoutBody, response);
+    code = postJson(backendUrl("/rfid/checkout"), checkoutBody, response);
     if (code == 200) {
       Serial.println("LOGOUT OK -> " + response);
       addScanLog(uid, "Check-out", "Success");
@@ -267,6 +306,18 @@ void setup() {
   Serial.println(WiFi.localIP());
   Serial.print("Reporting to backend at ");
   Serial.println(backendUrl(""));
+
+  // Sync wall-clock time so scan-log entries show a real time of day
+  // (IST, UTC+5:30) instead of seconds-since-boot.
+  configTime(GMT_OFFSET_SEC, DAYLIGHT_OFFSET_SEC, NTP_SERVER);
+  Serial.print("Syncing time via NTP");
+  struct tm timeinfo;
+  int ntpAttempts = 0;
+  while (!getLocalTime(&timeinfo, 500) && ntpAttempts < 10) {
+    Serial.print(".");
+    ntpAttempts++;
+  }
+  Serial.println(getLocalTime(&timeinfo, 100) ? " done." : " failed (using uptime fallback).");
 
   // Web routes
   server.on("/", HTTP_GET, handleRoot);
