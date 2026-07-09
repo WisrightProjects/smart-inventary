@@ -12,6 +12,7 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <WebServer.h>
+#include <time.h>
 
 // ---------------- WiFi ----------------
 const char* WIFI_SSID     = "Wisright";
@@ -39,17 +40,39 @@ struct ScanLog {
   String uid;
   String action;
   String status;
+  String time;
 };
 const int MAX_LOGS = 10;
 ScanLog scanLogs[MAX_LOGS];
 int logCount = 0;
 int logHead = 0;
 
+// NTP-synced wall-clock time (IST, UTC+5:30) so tap in/out entries show a real
+// time of day instead of "seconds since boot". Falls back to uptime if NTP
+// hasn't synced yet (e.g. right after boot, before the first sync completes).
+const long GMT_OFFSET_SEC = 5 * 3600 + 1800;
+const int DAYLIGHT_OFFSET_SEC = 0;
+const char* NTP_SERVER = "pool.ntp.org";
+
+String getTimeString() {
+  struct tm timeinfo;
+  if (!getLocalTime(&timeinfo, 200)) {
+    unsigned long totalSeconds = millis() / 1000UL;
+    char buf[16];
+    sprintf(buf, "+%02lu:%02lu:%02lu", (totalSeconds / 3600) % 24, (totalSeconds / 60) % 60, totalSeconds % 60);
+    return String(buf);
+  }
+  char buf[16];
+  strftime(buf, sizeof(buf), "%H:%M:%S", &timeinfo);
+  return String(buf);
+}
+
 void addScanLog(const String& uid, const String& action, const String& status) {
   scanLogs[logHead].uid = uid;
   scanLogs[logHead].action = action;
   scanLogs[logHead].status = status;
-  
+  scanLogs[logHead].time = getTimeString();
+
   logHead = (logHead + 1) % MAX_LOGS;
   if (logCount < MAX_LOGS) {
     logCount++;
@@ -147,10 +170,10 @@ void handleRoot() {
   html += "<div class='card' style='margin-bottom: 25px;'>";
   html += "<h3>Recent RFID Scan Activity</h3>";
   html += "<table>";
-  html += "<thead><tr><th>#</th><th>RFID UID</th><th>Action</th><th>Status / Response</th></tr></thead>";
+  html += "<thead><tr><th>#</th><th>RFID UID</th><th>Action</th><th>Time</th><th>Status / Response</th></tr></thead>";
   html += "<tbody>";
   if (logCount == 0) {
-    html += "<tr><td colspan='4' style='text-align: center; color: #9ca3af;'>No scan activity recorded yet.</td></tr>";
+    html += "<tr><td colspan='5' style='text-align: center; color: #9ca3af;'>No scan activity recorded yet.</td></tr>";
   } else {
     for (int i = 0; i < logCount; i++) {
       int idx = (logHead - 1 - i + MAX_LOGS) % MAX_LOGS;
@@ -158,6 +181,7 @@ void handleRoot() {
       html += "<td>" + String(i + 1) + "</td>";
       html += "<td><code>" + scanLogs[idx].uid + "</code></td>";
       html += "<td>" + scanLogs[idx].action + "</td>";
+      html += "<td><code>" + scanLogs[idx].time + "</code></td>";
       html += "<td>" + scanLogs[idx].status + "</td>";
       html += "</tr>";
     }
@@ -267,6 +291,18 @@ void setup() {
   Serial.println(WiFi.localIP());
   Serial.print("Reporting to backend at ");
   Serial.println(backendUrl(""));
+
+  // Sync wall-clock time so scan-log entries show a real time of day
+  // (IST, UTC+5:30) instead of seconds-since-boot.
+  configTime(GMT_OFFSET_SEC, DAYLIGHT_OFFSET_SEC, NTP_SERVER);
+  Serial.print("Syncing time via NTP");
+  struct tm timeinfo;
+  int ntpAttempts = 0;
+  while (!getLocalTime(&timeinfo, 500) && ntpAttempts < 10) {
+    Serial.print(".");
+    ntpAttempts++;
+  }
+  Serial.println(getLocalTime(&timeinfo, 100) ? " done." : " failed (using uptime fallback).");
 
   // Web routes
   server.on("/", HTTP_GET, handleRoot);
