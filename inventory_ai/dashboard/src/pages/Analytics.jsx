@@ -19,9 +19,9 @@ import { api } from "../api/client.js";
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, ArcElement, Filler, Tooltip, Legend);
 
-const gridColor = "rgba(128,134,146,0.15)";
-const tickColor = "#6B7280";
-const font = { family: "Poppins", size: 11 };
+const gridColor = "rgba(148,163,184,0.2)";
+const tickColor = "#475569";
+const font = { family: "Inter", size: 11 };
 
 const baseOptions = {
   responsive: true,
@@ -55,8 +55,8 @@ export default function Analytics() {
       {
         label: "Verifications",
         data: daily.map((d) => d.count),
-        borderColor: "#FF6B00",
-        backgroundColor: "rgba(255,107,0,0.12)",
+        borderColor: "#4f46e5",
+        backgroundColor: "rgba(79,70,229,0.12)",
         fill: true,
         tension: 0.4,
         pointRadius: 0,
@@ -70,14 +70,14 @@ export default function Analytics() {
       {
         label: "Frequency",
         data: topProducts.map((p) => p.count),
-        backgroundColor: "#FF6B00",
-        borderRadius: 8,
+        backgroundColor: "#4f46e5",
+        borderRadius: 6,
         maxBarThickness: 28,
       },
     ],
   };
 
-  const pieColors = ["#22C55E", "#EF4444", "#F59E0B", "#3B82F6", "#8B5CF6", "#FF6B00"];
+  const pieColors = ["#16a34a", "#dc2626", "#d97706", "#0284c7", "#7c3aed", "#4f46e5"];
   const statusData = {
     labels: statusBreakdown.map((s) => s.status.replace(/_/g, " ")),
     datasets: [{ data: statusBreakdown.map((s) => s.count), backgroundColor: pieColors, borderWidth: 0 }],
@@ -89,8 +89,8 @@ export default function Analytics() {
       {
         label: "Current Stock",
         data: stockMovement.map((s) => s.current_stock),
-        backgroundColor: "#8B5CF6",
-        borderRadius: 8,
+        backgroundColor: "#7c3aed",
+        borderRadius: 6,
         maxBarThickness: 28,
       },
     ],

@@ -108,19 +108,19 @@ export default function QrScanner() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Scanner panel */}
         <div className="card p-6 flex flex-col gap-4">
-          <div className="inline-flex self-start rounded-xl bg-hairline/[0.05] p-1">
+          <div className="flex gap-2 border-b border-hairline/10 mb-5 overflow-x-auto w-full">
             <button
               onClick={() => switchMode("camera")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                mode === "camera" ? "bg-surface-alt text-ink shadow-soft" : "text-muted"
+              className={`flex items-center gap-2 px-4 py-2.5 -mb-px text-sm font-medium border-b-2 bg-transparent transition-all hover:text-ink ${
+                mode === "camera" ? "border-primary text-primary font-semibold" : "border-transparent text-muted"
               }`}
             >
               <Camera size={16} /> Camera
             </button>
             <button
               onClick={() => switchMode("upload")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                mode === "upload" ? "bg-surface-alt text-ink shadow-soft" : "text-muted"
+              className={`flex items-center gap-2 px-4 py-2.5 -mb-px text-sm font-medium border-b-2 bg-transparent transition-all hover:text-ink ${
+                mode === "upload" ? "border-primary text-primary font-semibold" : "border-transparent text-muted"
               }`}
             >
               <Upload size={16} /> Upload

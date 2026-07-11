@@ -31,14 +31,14 @@ const lineOptions = {
   responsive: true,
   plugins: { legend: { display: false } },
   scales: {
-    x: { ticks: { color: "#6B7280", font: { family: "Poppins" } }, grid: { display: false } },
-    y: { ticks: { color: "#6B7280", font: { family: "Poppins" } }, grid: { color: "rgba(128,134,146,0.15)" } },
+    x: { ticks: { color: "#475569", font: { family: "Inter" } }, grid: { display: false } },
+    y: { ticks: { color: "#475569", font: { family: "Inter" } }, grid: { color: "rgba(148,163,184,0.2)" } },
   },
 };
 
 const pieOptions = {
   responsive: true,
-  plugins: { legend: { position: "bottom", labels: { color: "#6B7280", font: { family: "Poppins" }, boxWidth: 10, padding: 16 } } },
+  plugins: { legend: { position: "bottom", labels: { color: "#475569", font: { family: "Inter" }, boxWidth: 10, padding: 16 } } },
 };
 
 const STATUS_TONE = {
@@ -88,8 +88,8 @@ export default function Home() {
       {
         label: "Verifications",
         data: daily.map((d) => d.count),
-        borderColor: "#FF6B00",
-        backgroundColor: "rgba(255,107,0,0.08)",
+        borderColor: "#4f46e5",
+        backgroundColor: "rgba(79,70,229,0.08)",
         fill: true,
         tension: 0.4,
         pointRadius: 0,
@@ -97,7 +97,7 @@ export default function Home() {
     ],
   };
 
-  const pieColors = ["#22C55E", "#EF4444", "#F59E0B", "#3B82F6", "#8B5CF6", "#FF6B00"];
+  const pieColors = ["#16a34a", "#dc2626", "#d97706", "#0284c7", "#7c3aed", "#4f46e5"];
   const pieData = {
     labels: statusBreakdown.map((s) => s.status.replace(/_/g, " ")),
     datasets: [{ data: statusBreakdown.map((s) => s.count), backgroundColor: pieColors, borderWidth: 0 }],
