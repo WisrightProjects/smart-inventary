@@ -318,10 +318,10 @@ export default function Workers() {
                 <thead>
                   <tr className="bg-slate-50 border-b border-slate-200 text-slate-400 text-[10px] font-semibold uppercase tracking-wider">
                     <th className="px-5 py-3">Employee</th>
-                    <th className="px-5 py-3">Emp ID</th>
-                    <th className="px-5 py-3">RFID Card</th>
-                    <th className="px-5 py-3">Role</th>
-                    <th className="px-5 py-3">Home Room</th>
+                    <th className="px-5 py-3 hidden sm:table-cell">Emp ID</th>
+                    <th className="px-5 py-3 hidden md:table-cell">RFID Card</th>
+                    <th className="px-5 py-3 hidden sm:table-cell">Role</th>
+                    <th className="px-5 py-3 hidden md:table-cell">Home Room</th>
                     <th className="px-5 py-3">Status</th>
                     <th className="px-5 py-3 text-right"></th>
                   </tr>
@@ -337,10 +337,10 @@ export default function Workers() {
                           <span className="text-slate-900 font-medium">{w.name}</span>
                         </div>
                       </td>
-                      <td className="px-5 py-3.5 font-mono text-xs text-slate-500">{w.emp_id}</td>
-                      <td className="px-5 py-3.5 font-mono text-xs text-slate-500">{w.rfid_tag}</td>
-                      <td className="px-5 py-3.5 text-slate-500 text-xs">{w.department}</td>
-                      <td className="px-5 py-3.5 text-slate-500 text-xs">{w.room}</td>
+                      <td className="px-5 py-3.5 font-mono text-xs text-slate-500 hidden sm:table-cell">{w.emp_id}</td>
+                      <td className="px-5 py-3.5 font-mono text-xs text-slate-500 hidden md:table-cell">{w.rfid_tag}</td>
+                      <td className="px-5 py-3.5 text-slate-500 text-xs hidden sm:table-cell">{w.department}</td>
+                      <td className="px-5 py-3.5 text-slate-500 text-xs hidden md:table-cell">{w.room}</td>
                       <td className="px-5 py-3.5">
                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border leading-none ${
                           w.status === "Active"
@@ -390,8 +390,8 @@ export default function Workers() {
             <>
               {/* Profile Head Card */}
               <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-soft">
-                <div className="flex flex-wrap items-center justify-between gap-4">
-                  <div className="flex items-center gap-4">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div className="flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left">
                     <span className="w-16 h-16 rounded-full bg-primary-50 text-primary flex items-center justify-center font-bold text-lg shrink-0">
                       {initials(selectedWorker.name)}
                     </span>
@@ -404,8 +404,8 @@ export default function Workers() {
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span className={`text-xs font-bold px-3 py-1 rounded-full border leading-none ${
+                  <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+                    <span className={`text-xs font-bold px-3 py-1.5 rounded-full border leading-none text-center w-full sm:w-auto ${
                       selectedWorker.status === "Active"
                         ? "bg-emerald-50 text-emerald-600 border-emerald-100"
                         : "bg-slate-50 text-slate-500 border-slate-100"
@@ -414,7 +414,7 @@ export default function Workers() {
                     </span>
                     <button
                       onClick={() => openModal(selectedWorker)}
-                      className="px-3 py-1.5 border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-medium rounded transition-colors"
+                      className="px-3 py-1.5 border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-medium rounded transition-colors w-full sm:w-auto"
                     >
                       Edit
                     </button>
@@ -465,9 +465,9 @@ export default function Workers() {
                         <tr className="bg-slate-50 border-b border-slate-200 text-slate-400 text-[10px] font-semibold uppercase tracking-wider">
                           <th className="px-5 py-3">Product</th>
                           <th className="px-5 py-3">Move</th>
-                          <th className="px-5 py-3">From → To</th>
+                          <th className="px-5 py-3 hidden sm:table-cell">From → To</th>
                           <th className="px-5 py-3">Time</th>
-                          <th className="px-5 py-3">Match</th>
+                          <th className="px-5 py-3 hidden sm:table-cell">Match</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
@@ -477,30 +477,30 @@ export default function Workers() {
                             <tr className="hover:bg-slate-50/50 transition-colors">
                               <td className="px-5 py-3.5 text-slate-900 font-medium">Bosch GSB 12V Drill <span className="font-mono text-xs text-slate-400">PRD-0412</span></td>
                               <td className="px-5 py-3.5"><span className="text-[10px] font-bold px-2 py-0.5 rounded-full border bg-red-50 text-red-600 border-red-100 leading-none">OUT ×3</span></td>
-                              <td className="px-5 py-3.5 text-slate-500 text-xs">Room 2·A → Dispatch</td>
+                              <td className="px-5 py-3.5 text-slate-500 text-xs hidden sm:table-cell">Room 2·A → Dispatch</td>
                               <td className="px-5 py-3.5 font-mono text-xs text-slate-500">10 Jul 09:14</td>
-                              <td className="px-5 py-3.5"><span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100">All ✓</span></td>
+                              <td className="px-5 py-3.5 hidden sm:table-cell"><span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100">All ✓</span></td>
                             </tr>
                             <tr className="hover:bg-slate-50/50 transition-colors">
                               <td className="px-5 py-3.5 text-slate-900 font-medium">M8 Hex Bolts <span className="font-mono text-xs text-slate-400">PRD-0188</span></td>
                               <td className="px-5 py-3.5"><span className="text-[10px] font-bold px-2 py-0.5 rounded-full border bg-emerald-50 text-emerald-600 border-emerald-100 leading-none">IN ×50</span></td>
-                              <td className="px-5 py-3.5 text-slate-500 text-xs">Inbound → Room 1·B</td>
+                              <td className="px-5 py-3.5 text-slate-500 text-xs hidden sm:table-cell">Inbound → Room 1·B</td>
                               <td className="px-5 py-3.5 font-mono text-xs text-slate-500">09 Jul 16:22</td>
-                              <td className="px-5 py-3.5"><span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100">All ✓</span></td>
+                              <td className="px-5 py-3.5 hidden sm:table-cell"><span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100">All ✓</span></td>
                             </tr>
                             <tr className="hover:bg-slate-50/50 transition-colors">
                               <td className="px-5 py-3.5 text-slate-900 font-medium">Stainless Washers <span className="font-mono text-xs text-slate-400">PRD-0509</span></td>
                               <td className="px-5 py-3.5"><span className="text-[10px] font-bold px-2 py-0.5 rounded-full border bg-blue-50 text-blue-600 border-blue-100 leading-none">Transfer ×100</span></td>
-                              <td className="px-5 py-3.5 text-slate-500 text-xs">Room 1·A → Room 1·C</td>
+                              <td className="px-5 py-3.5 text-slate-500 text-xs hidden sm:table-cell">Room 1·A → Room 1·C</td>
                               <td className="px-5 py-3.5 font-mono text-xs text-slate-500">09 Jul 11:03</td>
-                              <td className="px-5 py-3.5"><span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100">All ✓</span></td>
+                              <td className="px-5 py-3.5 hidden sm:table-cell"><span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100">All ✓</span></td>
                             </tr>
                             <tr className="hover:bg-slate-50/50 transition-colors">
                               <td className="px-5 py-3.5 text-slate-900 font-medium">PVC Conduit 25mm <span className="font-mono text-xs text-slate-400">PRD-0421</span></td>
                               <td className="px-5 py-3.5"><span className="text-[10px] font-bold px-2 py-0.5 rounded-full border bg-red-50 text-red-600 border-red-100 leading-none">OUT ×12</span></td>
-                              <td className="px-5 py-3.5 text-slate-500 text-xs">Room 3·A → Dispatch</td>
+                              <td className="px-5 py-3.5 text-slate-500 text-xs hidden sm:table-cell">Room 3·A → Dispatch</td>
                               <td className="px-5 py-3.5 font-mono text-xs text-slate-500">08 Jul 14:41</td>
-                              <td className="px-5 py-3.5"><span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-red-50 text-red-600 border border-red-100">CCTV ✗</span></td>
+                              <td className="px-5 py-3.5 hidden sm:table-cell"><span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-red-50 text-red-600 border border-red-100">CCTV ✗</span></td>
                             </tr>
                           </>
                         ) : (
@@ -525,8 +525,8 @@ export default function Workers() {
                           <th className="px-5 py-3">Date</th>
                           <th className="px-5 py-3">Room</th>
                           <th className="px-5 py-3">Entry (RFID tap)</th>
-                          <th className="px-5 py-3">Exit</th>
-                          <th className="px-5 py-3">Duration</th>
+                          <th className="px-5 py-3 hidden sm:table-cell">Exit</th>
+                          <th className="px-5 py-3 hidden sm:table-cell">Duration</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
@@ -536,29 +536,29 @@ export default function Workers() {
                               <td className="px-5 py-3.5 text-slate-900 font-medium">10 Jul 2026</td>
                               <td className="px-5 py-3.5 text-slate-500 text-xs">Room 1</td>
                               <td className="px-5 py-3.5 font-mono text-xs text-slate-500">09:12</td>
-                              <td className="px-5 py-3.5 text-slate-400 text-xs">— still in —</td>
-                              <td className="px-5 py-3.5 text-slate-500 text-xs">40m</td>
+                              <td className="px-5 py-3.5 text-slate-400 text-xs hidden sm:table-cell">— still in —</td>
+                              <td className="px-5 py-3.5 text-slate-500 text-xs hidden sm:table-cell">40m</td>
                             </tr>
                             <tr className="hover:bg-slate-50/50 transition-colors">
                               <td className="px-5 py-3.5 text-slate-900 font-medium">09 Jul 2026</td>
                               <td className="px-5 py-3.5 text-slate-500 text-xs">Room 1</td>
                               <td className="px-5 py-3.5 font-mono text-xs text-slate-500">08:58</td>
-                              <td className="px-5 py-3.5 font-mono text-xs text-slate-500">17:04</td>
-                              <td className="px-5 py-3.5 text-slate-500 text-xs">8h 06m</td>
+                              <td className="px-5 py-3.5 font-mono text-xs text-slate-500 hidden sm:table-cell">17:04</td>
+                              <td className="px-5 py-3.5 text-slate-500 text-xs hidden sm:table-cell">8h 06m</td>
                             </tr>
                             <tr className="hover:bg-slate-50/50 transition-colors">
                               <td className="px-5 py-3.5 text-slate-900 font-medium">08 Jul 2026</td>
                               <td className="px-5 py-3.5 text-slate-500 text-xs">Room 3</td>
                               <td className="px-5 py-3.5 font-mono text-xs text-slate-500">10:20</td>
-                              <td className="px-5 py-3.5 font-mono text-xs text-slate-500">10:52</td>
-                              <td className="px-5 py-3.5 text-slate-500 text-xs">32m</td>
+                              <td className="px-5 py-3.5 font-mono text-xs text-slate-500 hidden sm:table-cell">10:52</td>
+                              <td className="px-5 py-3.5 text-slate-500 text-xs hidden sm:table-cell">32m</td>
                             </tr>
                             <tr className="hover:bg-slate-50/50 transition-colors">
                               <td className="px-5 py-3.5 text-slate-900 font-medium">08 Jul 2026</td>
                               <td className="px-5 py-3.5 text-slate-500 text-xs">Room 1</td>
                               <td className="px-5 py-3.5 font-mono text-xs text-slate-500">09:01</td>
-                              <td className="px-5 py-3.5 font-mono text-xs text-slate-500">17:10</td>
-                              <td className="px-5 py-3.5 text-slate-500 text-xs">8h 09m</td>
+                              <td className="px-5 py-3.5 font-mono text-xs text-slate-500 hidden sm:table-cell">17:10</td>
+                              <td className="px-5 py-3.5 text-slate-500 text-xs hidden sm:table-cell">8h 09m</td>
                             </tr>
                           </>
                         ) : (
@@ -680,7 +680,7 @@ export default function Workers() {
                 <span className="shrink-0 mt-0.5">ℹ️</span>
                 <div>Mockup form — nothing is saved to database. Map the employee to their physical RFID card so door taps identify them.</div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-semibold text-slate-700">Full Name <span className="text-red-500">*</span></label>
                   <input
@@ -706,7 +706,7 @@ export default function Workers() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-semibold text-slate-700">RFID Card Number <span className="text-red-500">*</span></label>
                   <input
@@ -733,7 +733,7 @@ export default function Workers() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-semibold text-slate-700">Home Room</label>
                   <select
@@ -848,9 +848,9 @@ function RfidActivityTab() {
                 <th className="pb-3 font-medium">Employee</th>
                 <th className="pb-3 font-medium">Room</th>
                 <th className="pb-3 font-medium">Login</th>
-                <th className="pb-3 font-medium">Logout</th>
-                <th className="pb-3 font-medium">Duration</th>
-                <th className="pb-3 font-medium">Status</th>
+                <th className="pb-3 font-medium hidden sm:table-cell">Logout</th>
+                <th className="pb-3 font-medium hidden sm:table-cell">Duration</th>
+                <th className="pb-3 font-medium hidden md:table-cell">Status</th>
               </tr>
             </thead>
             <tbody>
@@ -859,9 +859,9 @@ function RfidActivityTab() {
                   <td className="py-3 text-ink font-medium">{h.employee_name}</td>
                   <td className="py-3 text-muted">{h.room}</td>
                   <td className="py-3 text-muted">{h.entry_time}</td>
-                  <td className="py-3 text-muted">{h.exit_time || "—"}</td>
-                  <td className="py-3 text-muted">{h.duration || "—"}</td>
-                  <td className="py-3">
+                  <td className="py-3 text-muted hidden sm:table-cell">{h.exit_time || "—"}</td>
+                  <td className="py-3 text-muted hidden sm:table-cell">{h.duration || "—"}</td>
+                  <td className="py-3 hidden md:table-cell">
                     <Badge tone={h.status === "Completed" ? "success" : "info"}>{h.status}</Badge>
                   </td>
                 </tr>
