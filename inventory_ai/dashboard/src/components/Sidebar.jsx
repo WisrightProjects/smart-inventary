@@ -7,7 +7,7 @@ import {
   ScanLine,
   Package,
   Users,
-  History as HistoryIcon,
+  Search,
   BarChart3,
   Settings as SettingsIcon,
   QrCode,
@@ -18,25 +18,52 @@ import {
 import Logo from "./Logo.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 
-const LINKS = [
-  { to: "/", label: "Home", icon: LayoutDashboard },
-  { to: "/live", label: "Live Detection", icon: Video },
-  { to: "/inventory", label: "Inventory", icon: Boxes },
-  { to: "/verification", label: "Verification", icon: ScanLine },
-  { to: "/products", label: "Products", icon: Package },
-  { to: "/workers", label: "Workers", icon: Users },
-  { to: "/analytics", label: "Analytics", icon: BarChart3, adminOnly: true },
-  { to: "/qr-generator", label: "QR Generator", icon: QrCode, adminOnly: true },
-  { to: "/qr-scanner", label: "QR Scanner", icon: ScanLine },
-  { to: "/settings", label: "Settings", icon: SettingsIcon, adminOnly: true },
+const SECTIONS = [
+  {
+    title: "OVERVIEW",
+    links: [
+      { to: "/", label: "Dashboard", icon: LayoutDashboard },
+    ]
+  },
+  {
+    title: "INVENTORY",
+    links: [
+      { to: "/products", label: "Products", icon: Package },
+      { to: "/inventory", label: "Locations", icon: Boxes },
+      { to: "/product-search", label: "Product Search", icon: Search },
+    ]
+  },
+  {
+    title: "PEOPLE",
+    links: [
+      { to: "/workers", label: "Employees", icon: Users },
+    ]
+  },
+  {
+    title: "OPERATIONS",
+    links: [
+      { to: "/qr-scanner", label: "QR Scanner", icon: ScanLine },
+    ]
+  },
+  {
+    title: "MONITORING",
+    links: [
+      { to: "/verification", label: "Attendance Match", icon: ScanLine },
+    ]
+  },
+  {
+    title: "REPORTS",
+    links: [
+      { to: "/analytics", label: "Movement Report", icon: BarChart3, adminOnly: true },
+      { to: "/settings", label: "Settings", icon: SettingsIcon, adminOnly: true },
+    ]
+  }
 ];
 
 export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-
-  const links = LINKS.filter((link) => !link.adminOnly || user?.role === "admin");
 
   const handleLogout = () => {
     logout();
@@ -57,25 +84,43 @@ export default function Sidebar() {
       </div>
 
       <nav className="flex-1 flex flex-col gap-0.5 px-3 py-4 overflow-y-auto">
-        {links.map((link) => {
-          const Icon = link.icon;
+        {SECTIONS.map((section, idx) => {
+          // Filter links in section based on adminOnly and user role
+          const visibleLinks = section.links.filter(
+            (link) => !link.adminOnly || user?.role === "admin"
+          );
+
+          if (visibleLinks.length === 0) return null;
+
           return (
-            <NavLink
-              key={link.to}
-              to={link.to}
-              end={link.to === "/"}
-              title={collapsed ? link.label : undefined}
-              className={({ isActive }) =>
-                `group flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] font-medium transition-all duration-150 ${
-                  isActive
-                    ? "bg-slate-800 text-white"
-                    : "text-slate-400 hover:bg-slate-800/70 hover:text-slate-200"
-                }`
-              }
-            >
-              <Icon size={17} strokeWidth={2.1} className="shrink-0" />
-              {!collapsed && <span className="truncate">{link.label}</span>}
-            </NavLink>
+            <div key={idx} className="flex flex-col gap-0.5">
+              {!collapsed && (
+                <div className="text-[10px] font-bold text-slate-500 px-3 mt-4 mb-1.5 tracking-wider uppercase">
+                  {section.title}
+                </div>
+              )}
+              {visibleLinks.map((link) => {
+                const Icon = link.icon;
+                return (
+                  <NavLink
+                    key={link.to}
+                    to={link.to}
+                    end={link.to === "/"}
+                    title={collapsed ? link.label : undefined}
+                    className={({ isActive }) =>
+                      `group flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] font-medium transition-all duration-150 ${
+                        isActive
+                          ? "bg-slate-800 text-white"
+                          : "text-slate-400 hover:bg-slate-800/70 hover:text-slate-200"
+                      }`
+                    }
+                  >
+                    <Icon size={17} strokeWidth={2.1} className="shrink-0" />
+                    {!collapsed && <span className="truncate">{link.label}</span>}
+                  </NavLink>
+                );
+              })}
+            </div>
           );
         })}
       </nav>
