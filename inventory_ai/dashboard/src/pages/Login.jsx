@@ -115,7 +115,7 @@ export default function Login() {
         </div>
       </div>
       <footer className="mt-8 text-center text-xs text-muted max-w-md">
-        Designed & Developed by Vishali, Suraj and Vaanavee as part of the WisRight Innovation Internship Program (WR-IIP) held during June-July 2026
+        Designed & Developed by Vishali, Suraj and Vaanavee as part of the <a href="https://www.wisright.com/" target="_blank" rel="noopener noreferrer" className="hover:underline text-primary font-medium">WisRight Innovation Internship Program (WR-IIP)</a> held during June-July 2026
       </footer>
     </div>
   );

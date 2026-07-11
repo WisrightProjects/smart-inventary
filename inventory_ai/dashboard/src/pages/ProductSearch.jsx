@@ -297,9 +297,6 @@ export default function ProductSearch() {
         </div>
       </div>
 
-      <div className="text-slate-400 mt-2 text-center text-[11px]">
-        Designed & Developed by Vishali, Suraj and Vaanavee as part of the WisRight Innovation Internship Program (WR-IIP) held during June-July 2026
-      </div>
     </div>
   );
 }

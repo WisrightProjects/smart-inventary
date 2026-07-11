@@ -40,7 +40,7 @@ function AppLayout() {
           </Routes>
         </main>
         <footer className="py-4 px-8 border-t border-hairline/[0.08] text-center text-xs text-muted">
-          Designed & Developed by Vishali, Suraj and Vaanavee as part of the WisRight Innovation Internship Program (WR-IIP) held during June-July 2026
+          Designed & Developed by Vishali, Suraj and Vaanavee as part of the <a href="https://www.wisright.com/" target="_blank" rel="noopener noreferrer" className="hover:underline text-primary font-medium">WisRight Innovation Internship Program (WR-IIP)</a> held during June-July 2026
         </footer>
       </div>
     </div>
