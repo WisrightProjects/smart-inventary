@@ -15,51 +15,7 @@
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
-#include <Wire.h>
-#include <Adafruit_GFX.h>
-#include <Adafruit_SSD1306.h>
 #include <ArduinoJson.h>
-
-#define SCREEN_WIDTH 128
-#define SCREEN_HEIGHT 64
-#define OLED_RESET -1
-Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
-
-unsigned long lastOledUpdate = 0;
-unsigned long displayMessageUntil = 0;
-
-void showOLEDMessage(const String& title, const String& msg, int durationMs = 3000) {
-  display.clearDisplay();
-  display.setTextColor(SSD1306_WHITE);
-  display.setCursor(0, 0);
-  display.setTextSize(1);
-  display.println("Smart Inventory");
-  display.println("---------------------");
-  display.setTextSize(1);
-  display.println(title);
-  display.println();
-  display.setTextSize(1);
-  display.println(msg);
-  display.display();
-  displayMessageUntil = millis() + durationMs;
-}
-
-void updateOLEDIdle() {
-  if (millis() < displayMessageUntil) return;
-  display.clearDisplay();
-  display.setTextColor(SSD1306_WHITE);
-  display.setCursor(0, 0);
-  display.setTextSize(1);
-  display.println("Smart Inventory");
-  display.println("---------------------");
-  display.print("Unit: Rack ");
-  display.println(RACK_NAME);
-  display.print("IP: ");
-  display.println(WiFi.localIP().toString());
-  display.println();
-  display.println("Scan RFID Card...");
-  display.display();
-}
 
 // ---------------- WiFi ----------------
 const char* WIFI_SSID     = "Vishali";
@@ -127,21 +83,6 @@ void setup() {
   delay(500);
   Serial.println("\n==== Rack Unit Booting ====");
 
-  // Initialize I2C OLED display
-  Wire.begin(21, 17);
-  if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
-    Serial.println(F("SSD1306 allocation failed"));
-  } else {
-    display.clearDisplay();
-    display.setTextColor(SSD1306_WHITE);
-    display.setTextSize(1);
-    display.setCursor(0,0);
-    display.println("Smart Inventory");
-    display.println("---------------------");
-    display.println("Booting...");
-    display.display();
-  }
-
   bool rfidDetected = false;
   // Try config 1: standard wiring (RC522 SS=5, RST=22)
   if (tryRFID(5, 22, 18, 19, 23)) {
@@ -155,16 +96,6 @@ void setup() {
 
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   Serial.print("Connecting to WiFi");
-  if (display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
-    display.clearDisplay();
-    display.setCursor(0, 0);
-    display.println("Smart Inventory");
-    display.println("---------------------");
-    display.println("Connecting WiFi...");
-    display.print("SSID: ");
-    display.println(WIFI_SSID);
-    display.display();
-  }
 
   while (WiFi.status() != WL_CONNECTED) {
     delay(300);
@@ -176,40 +107,19 @@ void setup() {
   Serial.print("Reporting to backend at ");
   Serial.println(backendUrl(""));
 
-  if (display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
-    display.clearDisplay();
-    display.setCursor(0, 0);
-    display.println("Smart Inventory");
-    display.println("---------------------");
-    display.println("WiFi Connected!");
-    display.print("IP: ");
-    display.println(WiFi.localIP().toString());
-    display.display();
-    delay(1500);
-  }
-
   Serial.println("Rack Unit ready. Waiting for RFID taps...");
-  updateOLEDIdle();
 }
 
 void loop() {
-  // Periodic OLED idle update
-  if (millis() - lastOledUpdate >= 1000) {
-    updateOLEDIdle();
-    lastOledUpdate = millis();
-  }
-
   if (!rfid || !rfid->PICC_IsNewCardPresent() || !rfid->PICC_ReadCardSerial()) {
     return;
   }
 
   String uid = readUID();
   Serial.println("Tap detected -> UID: " + uid);
-  showOLEDMessage("RFID Scan Status", "Verifying...\nUID: " + uid, 5000);
 
   if (WiFi.status() != WL_CONNECTED) {
     Serial.println("WiFi not connected, cannot report rack access.");
-    showOLEDMessage("ACCESS DENIED", "WiFi Disconnected", 3000);
   } else {
     String body = "{\"rfidTag\":\"" + uid + "\",\"rack\":\"" + String(RACK_NAME) +
                   "\",\"room\":\"" + String(ROOM_NAME) + "\"}";
@@ -234,16 +144,15 @@ void loop() {
 
     if (code == 201) {
       Serial.println("Recorded: " + response);
-      showOLEDMessage("ACCESS GRANTED", "Rack: " + String(RACK_NAME) + "\n" + empName, 3000);
+      Serial.println("ACCESS GRANTED to Rack " + String(RACK_NAME) + " for " + empName);
     } else if (code == 403) {
       Serial.println("Denied: " + uid + " is not currently checked in. " + response);
-      showOLEDMessage("ACCESS DENIED", "Not Checked In\n" + empName, 3000);
+      Serial.println("ACCESS DENIED for " + empName + " (Not Checked In)");
     } else if (code == 404) {
       Serial.println("Unregistered card: " + uid);
-      showOLEDMessage("ACCESS DENIED", "Unregistered Card\nUID: " + uid, 3000);
+      Serial.println("ACCESS DENIED (Unregistered Card)");
     } else {
       Serial.println("Error contacting backend. HTTP code: " + String(code) + " " + response);
-      showOLEDMessage("ERROR", "Code: " + String(code), 3000);
     }
   }
 
